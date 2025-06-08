@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useTransactions } from '@/context/transaction-context';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, ShoppingCart } from 'lucide-react';
+import { PlusCircle, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 
 const saleItemSchema = z.object({
   name: z.string().min(1, "Item name is required"),
@@ -29,6 +29,7 @@ type SaleFormValues = z.infer<typeof saleFormSchema>;
 export default function RecordSalePage() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),
     defaultValues: {
@@ -42,24 +43,37 @@ export default function RecordSalePage() {
     name: "items",
   });
 
-  const onSubmit = (data: SaleFormValues) => {
-    const saleItems = data.items.map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      pricePerItem: item.pricePerItem,
-    }));
+  const onSubmit = async (data: SaleFormValues) => {
+    setIsLoading(true);
+    try {
+      // Simulating an async operation
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+      const saleItems = data.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        pricePerItem: item.pricePerItem,
+      }));
 
-    addTransaction({
-      type: 'sale',
-      customerName: data.customerName,
-      items: saleItems,
-    });
+      addTransaction({
+        type: 'sale',
+        customerName: data.customerName,
+        items: saleItems,
+      });
 
-    toast({
-      title: "Sale Recorded",
-      description: "The sale has been successfully recorded.",
-    });
-    form.reset();
+      toast({
+        title: "Sale Recorded",
+        description: "The sale has been successfully recorded.",
+      });
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record sale. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const calculateTotal = (index: number) => {
@@ -173,8 +187,15 @@ export default function RecordSalePage() {
 
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              Record Sale
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Recording...
+                </>
+              ) : (
+                "Record Sale"
+              )}
             </Button>
           </CardFooter>
         </form>

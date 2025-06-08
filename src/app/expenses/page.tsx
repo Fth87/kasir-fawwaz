@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useTransactions } from '@/context/transaction-context';
 import { useToast } from '@/hooks/use-toast';
-import { BadgeDollarSign } from 'lucide-react';
+import { BadgeDollarSign, Loader2 } from 'lucide-react';
 
 const expenseFormSchema = z.object({
   description: z.string().min(1, "Expense description is required"),
@@ -24,6 +24,7 @@ type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 export default function RecordExpensePage() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
@@ -33,18 +34,31 @@ export default function RecordExpensePage() {
     },
   });
 
-  const onSubmit = (data: ExpenseFormValues) => {
-    addTransaction({
-      type: 'expense',
-      description: data.description,
-      category: data.category,
-      amount: data.amount,
-    });
-    toast({
-      title: "Expense Recorded",
-      description: "The expense has been successfully recorded.",
-    });
-    form.reset();
+  const onSubmit = async (data: ExpenseFormValues) => {
+    setIsLoading(true);
+    try {
+      // Simulating an async operation, if addTransaction were async
+      // await new Promise(resolve => setTimeout(resolve, 1000)); 
+      addTransaction({
+        type: 'expense',
+        description: data.description,
+        category: data.category,
+        amount: data.amount,
+      });
+      toast({
+        title: "Expense Recorded",
+        description: "The expense has been successfully recorded.",
+      });
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record expense. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -99,8 +113,15 @@ export default function RecordExpensePage() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              Record Expense
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Recording...
+                </>
+              ) : (
+                "Record Expense"
+              )}
             </Button>
           </CardFooter>
         </form>

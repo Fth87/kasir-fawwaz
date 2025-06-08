@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useTransactions } from '@/context/transaction-context';
 import { useToast } from '@/hooks/use-toast';
-import { Wrench } from 'lucide-react';
+import { Wrench, Loader2 } from 'lucide-react';
 
 const serviceFormSchema = z.object({
   serviceName: z.string().min(1, "Service name is required"),
@@ -23,6 +23,7 @@ type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 export default function RecordServicePage() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
@@ -32,18 +33,31 @@ export default function RecordServicePage() {
     },
   });
 
-  const onSubmit = (data: ServiceFormValues) => {
-    addTransaction({
-      type: 'service',
-      serviceName: data.serviceName,
-      customerName: data.customerName,
-      serviceFee: data.serviceFee,
-    });
-    toast({
-      title: "Service Recorded",
-      description: "The service income has been successfully recorded.",
-    });
-    form.reset();
+  const onSubmit = async (data: ServiceFormValues) => {
+    setIsLoading(true);
+    try {
+      // Simulating an async operation
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+      addTransaction({
+        type: 'service',
+        serviceName: data.serviceName,
+        customerName: data.customerName,
+        serviceFee: data.serviceFee,
+      });
+      toast({
+        title: "Service Recorded",
+        description: "The service income has been successfully recorded.",
+      });
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record service. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -98,8 +112,15 @@ export default function RecordServicePage() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              Record Service Income
+            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Recording...
+                </>
+              ) : (
+                "Record Service Income"
+              )}
             </Button>
           </CardFooter>
         </form>
