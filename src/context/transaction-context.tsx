@@ -45,16 +45,16 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       const grandTotal = itemsWithTotals.reduce((sum, item) => sum + item.total, 0);
       newTransaction = { ...commonData, ...transactionData, items: itemsWithTotals, grandTotal } as SaleTransaction;
     } else if (transactionData.type === 'service') {
-      newTransaction = { 
-        ...commonData, 
-        ...transactionData, 
+      newTransaction = {
+        ...commonData,
+        ...transactionData,
         status: ServiceStatusOptions[0].value, // Default status
-        progressNotes: [] 
+        progressNotes: []
       } as ServiceTransaction;
     } else { // expense
       newTransaction = { ...commonData, ...transactionData } as ExpenseTransaction;
     }
-    
+
     setTransactions(prev => [newTransaction, ...prev]);
     return newTransaction;
   }, []);
@@ -64,29 +64,60 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
   }, [transactions]);
 
   const updateServiceProgress = useCallback((transactionId: string, status: ServiceStatusValue, newNoteText?: string): ServiceTransaction | undefined => {
-    let updatedTx: ServiceTransaction | undefined;
-    setTransactions(prev => 
-      prev.map(tx => {
-        if (tx.id === transactionId && tx.type === 'service') {
-          const newProgressNotes = [...tx.progressNotes];
-          if (newNoteText && newNoteText.trim() !== "") {
-            newProgressNotes.push({
-              id: crypto.randomUUID(),
-              note: newNoteText.trim(),
-              timestamp: new Date().toISOString(),
-            });
-          }
-          updatedTx = {
-            ...tx,
-            status,
-            progressNotes: newProgressNotes,
-          };
-          return updatedTx;
-        }
-        return tx;
-      })
-    );
-    return updatedTx;
+    if (!transactionId) {
+      return undefined;
+    }
+
+    let successfullyUpdatedTransaction: ServiceTransaction | undefined;
+
+    setTransactions(prevTransactions => {
+      const transactionIndex = prevTransactions.findIndex(tx => tx.id === transactionId && tx.type === 'service');
+
+      if (transactionIndex === -1) {
+        // Transaction not found or not a service, so no update will occur.
+        // successfullyUpdatedTransaction remains undefined.
+        return prevTransactions; // Return original state
+      }
+
+      const originalTransaction = prevTransactions[transactionIndex] as ServiceTransaction;
+
+      const newProgressNotes = [...originalTransaction.progressNotes];
+      let noteAdded = false;
+      if (newNoteText && newNoteText.trim() !== "") {
+        newProgressNotes.push({
+          id: crypto.randomUUID(),
+          note: newNoteText.trim(),
+          timestamp: new Date().toISOString(),
+        });
+        noteAdded = true;
+      }
+
+      const statusChanged = status !== originalTransaction.status;
+
+      // If nothing actually changed, we can avoid creating a new transactions array.
+      // We'll still return the transaction as if "updated" to satisfy the caller's expectation of getting a transaction object back.
+      if (!noteAdded && !statusChanged) {
+        successfullyUpdatedTransaction = originalTransaction;
+        return prevTransactions;
+      }
+
+      const updatedTransaction: ServiceTransaction = {
+        ...originalTransaction,
+        status,
+        progressNotes: newProgressNotes,
+      };
+      
+      successfullyUpdatedTransaction = updatedTransaction;
+
+      const newTransactions = [
+        ...prevTransactions.slice(0, transactionIndex),
+        updatedTransaction,
+        ...prevTransactions.slice(transactionIndex + 1),
+      ];
+      return newTransactions;
+    });
+
+    return successfullyUpdatedTransaction;
   }, []);
 
   return (
@@ -103,3 +134,4 @@ export const useTransactions = () => {
   }
   return context;
 };
+
