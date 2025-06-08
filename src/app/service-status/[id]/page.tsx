@@ -33,10 +33,14 @@ export default function ServiceStatusPage() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
-  const getStatusIcon = (status: ServiceTransaction['status']) => {
-    if (status.startsWith('COMPLETED')) return <CheckCircle className="h-5 w-5 text-green-500" />;
-    if (status === 'CANCELLED') return <CircleSlash className="h-5 w-5 text-red-500" />;
-    if (status === 'AWAITING_PARTS' || status.includes('DIAGNOSIS') || status.includes('REPAIR')) return <Clock className="h-5 w-5 text-yellow-500" />;
+  const getStatusIcon = (statusInput: ServiceTransaction['status'] | undefined) => {
+    // Guard against undefined or non-string status
+    if (typeof statusInput !== 'string') {
+      return <Info className="h-5 w-5 text-blue-500" />; // Default icon
+    }
+    if (statusInput.startsWith('COMPLETED')) return <CheckCircle className="h-5 w-5 text-green-500" />;
+    if (statusInput === 'CANCELLED') return <CircleSlash className="h-5 w-5 text-red-500" />;
+    if (statusInput === 'AWAITING_PARTS' || statusInput.includes('DIAGNOSIS') || statusInput.includes('REPAIR')) return <Clock className="h-5 w-5 text-yellow-500" />;
     return <Info className="h-5 w-5 text-blue-500" />;
   }
 
@@ -137,3 +141,4 @@ export default function ServiceStatusPage() {
     </div>
   );
 }
+
