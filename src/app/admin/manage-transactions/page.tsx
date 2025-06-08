@@ -28,7 +28,7 @@ import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
 export default function ManageTransactionsPage() {
-  const { transactions, deleteTransaction, updateTransactionDetails } = useTransactions();
+  const { transactions, deleteTransaction } = useTransactions();
   const { currentUser, isLoadingAuth } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -64,33 +64,8 @@ export default function ManageTransactionsPage() {
     // Toast is handled within deleteTransaction now
   };
 
-  const handleEdit = (transaction: Transaction) => {
-    // Conceptual edit: For now, just show a toast. 
-    // A real edit would involve a modal/form.
-    // Example: Change description of an expense
-    if (transaction.type === 'expense') {
-        const newDescription = prompt("Enter new description for expense:", transaction.description);
-        if (newDescription !== null && newDescription.trim() !== "") {
-            updateTransactionDetails(transaction.id, { description: newDescription.trim() });
-        } else if (newDescription !== null) { // User cleared description
-             updateTransactionDetails(transaction.id, { description: "" });
-        }
-    } else if (transaction.type === 'sale') {
-        const customerName = prompt("Enter new customer name for sale (leave blank if no change):", transaction.customerName || "");
-        if (customerName !== null) { // User pressed OK
-             updateTransactionDetails(transaction.id, { customerName: customerName.trim() });
-        }
-    } else if (transaction.type === 'service') {
-         const serviceName = prompt("Enter new service name (leave blank if no change):", transaction.serviceName || "");
-        if (serviceName !== null) { 
-             updateTransactionDetails(transaction.id, { serviceName: serviceName.trim() });
-        }
-    } else {
-        toast({
-        title: "Edit Action (Conceptual)",
-        description: `Editing for transaction ID ${transaction.id.substring(0,8)} would happen here. Full edit UI not yet implemented.`,
-        });
-    }
+  const handleEdit = (transactionId: string) => {
+    router.push(`/admin/edit-transaction/${transactionId}`);
   };
 
   if (isLoadingAuth || !currentUser || currentUser.role !== 'admin') {
@@ -115,7 +90,7 @@ export default function ManageTransactionsPage() {
         <CardTitle className="text-2xl font-headline flex items-center">
           <ListOrdered className="mr-2 h-6 w-6" /> Manage All Transactions
         </CardTitle>
-        <CardDescription>View, edit (conceptual), and delete all recorded transactions.</CardDescription>
+        <CardDescription>View, edit, and delete all recorded transactions.</CardDescription>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
@@ -162,7 +137,7 @@ export default function ManageTransactionsPage() {
                         </Link>
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(tx)} className="px-2 sm:px-3">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(tx.id)} className="px-2 sm:px-3">
                       <Edit3 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Edit</span>
                     </Button>
                     <AlertDialog>
