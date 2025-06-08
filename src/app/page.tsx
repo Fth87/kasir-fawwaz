@@ -1,3 +1,4 @@
+
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { ShoppingCart, Wrench, BadgeDollarSign, ScrollText, Lightbulb, ArrowRigh
 import { useTransactions } from "@/context/transaction-context";
 import type { Transaction } from "@/types";
 import { useEffect, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { transactions } = useTransactions();
@@ -15,6 +17,11 @@ export default function DashboardPage() {
     totalExpenses: 0,
     transactionCount: 0,
   });
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     let sales = 0;
@@ -121,7 +128,13 @@ export default function DashboardPage() {
              <CardDescription>Showing last 5 transactions.</CardDescription>
           </CardHeader>
           <CardContent>
-            {transactions.length === 0 ? (
+            {!isClient ? (
+              <div className="space-y-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : transactions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No transactions recorded yet.</p>
             ) : (
               <ul className="space-y-3">
@@ -146,7 +159,7 @@ export default function DashboardPage() {
                 ))}
               </ul>
             )}
-             {transactions.length > 5 && (
+             {isClient && transactions.length > 5 && (
                 <Button variant="link" asChild className="mt-2 p-0 h-auto">
                     <Link href="/transactions">View all transactions</Link>
                 </Button>
