@@ -61,7 +61,18 @@ export type ExpenseTransaction = {
 
 export type Transaction = SaleTransaction | ServiceTransaction | ExpenseTransaction;
 
-export function getServiceStatusLabel(statusValue: ServiceStatusValue): string {
+export function getServiceStatusLabel(statusValue?: ServiceStatusValue): string {
+  if (!statusValue) return 'N/A';
   const option = ServiceStatusOptions.find(opt => opt.value === statusValue);
   return option ? option.label : statusValue;
 }
+
+// --- Auth Types ---
+export type UserRole = 'admin' | 'cashier';
+
+export type User = {
+  id: string;
+  username: string;
+  password?: string; // Password should not be stored like this in production
+  role: UserRole;
+};

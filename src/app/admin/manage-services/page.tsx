@@ -9,24 +9,46 @@ import { getServiceStatusLabel } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Settings, Eye } from 'lucide-react';
+import { ClipboardList, Settings, Eye, Loader2, ShieldAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 export default function ManageServicesPage() {
   const { transactions } = useTransactions();
   const [isClient, setIsClient] = useState(false);
   const [serviceTransactions, setServiceTransactions] = useState<ServiceTransaction[]>([]);
+  
+  const { currentUser, isLoadingAuth } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
+      router.replace('/'); // Redirect if not admin or not logged in
+    }
+  }, [currentUser, isLoadingAuth, router]);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   useEffect(() => {
-    if (isClient) {
+    if (isClient && currentUser?.role === 'admin') {
       setServiceTransactions(transactions.filter(tx => tx.type === 'service') as ServiceTransaction[]);
     }
-  }, [isClient, transactions]);
+  }, [isClient, transactions, currentUser]);
+
+  if (isLoadingAuth || !currentUser || currentUser.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        {isLoadingAuth ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ShieldAlert className="h-12 w-12 text-destructive" />}
+        <p className="text-muted-foreground">
+          {isLoadingAuth ? 'Loading authentication...' : 'Access Denied. Admins only.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -90,4 +112,3 @@ export default function ManageServicesPage() {
     </Card>
   );
 }
-

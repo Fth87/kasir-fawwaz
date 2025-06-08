@@ -3,7 +3,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import React, { useEffect } from 'react';
 import {
   SidebarProvider,
   Sidebar,
@@ -19,7 +20,6 @@ import {
   SidebarGroup,
   SidebarGroupLabel
 } from '@/components/ui/sidebar';
-import { LogoIcon } from '@/components/icons/logo-icon';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
@@ -32,8 +32,11 @@ import {
   Settings,
   Smartphone,
   ClipboardList,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import Loading from '@/app/loading'; // Import global loading component
 
 const mainNavItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -50,6 +53,46 @@ const adminNavItems = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { currentUser, isLoadingAuth, logout } = useAuth();
+
+  useEffect(() => {
+    if (isLoadingAuth) return; // Wait until auth state is determined
+
+    if (!currentUser && pathname !== '/login') {
+      router.push('/login');
+    } else if (currentUser && pathname === '/login') {
+      router.push('/'); // If logged in and on login page, redirect to home
+    }
+  }, [currentUser, isLoadingAuth, pathname, router]);
+
+  // If on login page, and not yet authenticated (or still loading auth), render children directly
+  // This prevents the AppLayout shell from appearing on the login page itself.
+  if (pathname === '/login') {
+    if (isLoadingAuth || !currentUser) { // Check !currentUser to ensure redirect to / if logged in
+      return <>{children}</>;
+    }
+    // If somehow currentUser is true AND pathname is /login, useEffect will redirect,
+    // but good to have a fallback or return children until redirect happens.
+    return <Loading />;
+  }
+
+  // If still loading auth status for non-login pages, show a global loader
+  if (isLoadingAuth) {
+    return <Loading />;
+  }
+
+  // If not authenticated and not on login page (redirect should be in progress), show loader
+  if (!currentUser && pathname !== '/login') {
+    return <Loading />;
+  }
+  
+  // If currentUser is null but we passed the above checks (shouldn't happen often due to redirect),
+  // it's safer to return a loader or an empty fragment. This indicates an edge case.
+  if (!currentUser) {
+      return <Loading />;
+  }
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -81,34 +124,48 @@ export function AppLayout({ children }: { children: ReactNode }) {
             ))}
           </SidebarMenu>
           
-          <SidebarSeparator className="my-2" />
-          
-          <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center">
-                <ShieldCheck className="mr-2 h-4 w-4"/>
-                <span className="group-data-[collapsible=icon]:hidden">Admin Area</span>
-            </SidebarGroupLabel>
-            <SidebarMenu>
-                {adminNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                    <Button
-                    asChild
-                    variant={(pathname === item.href || pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
-                    className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-                    >
-                    <Link href={item.href} className="flex items-center gap-3">
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                    </Link>
-                    </Button>
-                </SidebarMenuItem>
-                ))}
-            </SidebarMenu>
-          </SidebarGroup>
+          {currentUser?.role === 'admin' && (
+            <>
+              <SidebarSeparator className="my-2" />
+              <SidebarGroup>
+                <SidebarGroupLabel className="flex items-center">
+                    <ShieldCheck className="mr-2 h-4 w-4"/>
+                    <span className="group-data-[collapsible=icon]:hidden">Admin Area</span>
+                </SidebarGroupLabel>
+                <SidebarMenu>
+                    {adminNavItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                        <Button
+                        asChild
+                        variant={(pathname === item.href || pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
+                        className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+                        >
+                        <Link href={item.href} className="flex items-center gap-3">
+                            <item.icon className="h-5 w-5 shrink-0" />
+                            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </Link>
+                        </Button>
+                    </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+              </SidebarGroup>
+            </>
+          )}
 
         </SidebarContent>
         <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
-           {/* Placeholder for footer items like settings or logout */}
+           <SidebarMenu>
+             <SidebarMenuItem>
+               <Button
+                 variant="ghost"
+                 className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+                 onClick={logout}
+               >
+                 <LogOut className="h-5 w-5 shrink-0" />
+                 <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+               </Button>
+             </SidebarMenuItem>
+           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

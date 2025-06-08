@@ -16,7 +16,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings, MessageSquare, CheckCircle, Info, Clock, CircleSlash, Loader2, Home, Phone, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Settings, MessageSquare, CheckCircle, Info, Clock, CircleSlash, Loader2, Home, Phone, MessageCircle, ShieldAlert } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 const updateServiceSchema = z.object({
   status: z.string().min(1, "Status is required"), 
@@ -33,6 +34,14 @@ export default function ManageServiceProgressPage() {
   const [service, setService] = useState<ServiceTransaction | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { currentUser, isLoadingAuth } = useAuth();
+
+  useEffect(() => {
+    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
+      router.replace('/'); // Redirect if not admin or not logged in
+    }
+  }, [currentUser, isLoadingAuth, router]);
+
   const form = useForm<UpdateServiceFormValues>({
     resolver: zodResolver(updateServiceSchema),
     defaultValues: {
@@ -42,7 +51,7 @@ export default function ManageServiceProgressPage() {
   });
 
   useEffect(() => {
-    if (params.id) {
+    if (currentUser?.role === 'admin' && params.id) {
       const tx = getTransactionById(params.id as string);
       if (tx && tx.type === 'service') {
         setService(tx);
@@ -51,7 +60,7 @@ export default function ManageServiceProgressPage() {
         setService(null);
       }
     }
-  }, [params.id, getTransactionById, transactions, form]);
+  }, [params.id, getTransactionById, transactions, form, currentUser]);
 
   const onSubmit = async (data: UpdateServiceFormValues) => {
     if (!service) return;
@@ -96,8 +105,6 @@ export default function ManageServiceProgressPage() {
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
     } else if (!cleaned.startsWith('62')) {
-      // Basic assumption for Indonesian numbers not starting with 0 or 62
-      // You might want a more robust library for international numbers
       cleaned = '62' + cleaned; 
     }
     return cleaned;
@@ -126,12 +133,22 @@ export default function ManageServiceProgressPage() {
     window.open(whatsappUrl, '_blank');
   };
 
+  if (isLoadingAuth || !currentUser || currentUser.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        {isLoadingAuth ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ShieldAlert className="h-12 w-12 text-destructive" />}
+        <p className="text-muted-foreground">
+          {isLoadingAuth ? 'Loading authentication...' : 'Access Denied. Admins only.'}
+        </p>
+      </div>
+    );
+  }
 
-  if (service === undefined) {
+  if (service === undefined && currentUser?.role === 'admin') { // Check role before showing loading for service details
     return <div className="flex justify-center items-center h-64">Loading service details...</div>;
   }
 
-  if (!service) {
+  if (!service && currentUser?.role === 'admin') {
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold mb-4">Service Not Found</h2>
@@ -142,6 +159,12 @@ export default function ManageServiceProgressPage() {
       </div>
     );
   }
+  
+  // Fallback if service is still null/undefined due to non-admin role, though outer check should catch this
+  if (!service) {
+      return null; // Or a generic access denied if preferred over loader from outer check
+  }
+
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
