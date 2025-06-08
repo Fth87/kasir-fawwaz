@@ -24,6 +24,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Package, PlusCircle, Edit3, Trash2, Loader2, ShieldAlert, PackagePlus, PackageSearch } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -320,3 +331,5 @@ export default function ManageInventoryPage() {
     </div>
   );
 }
+
+    
