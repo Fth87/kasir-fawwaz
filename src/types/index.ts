@@ -81,3 +81,14 @@ export type User = {
 
 // For Add User Form
 export type NewUserInput = Omit<User, 'id'>;
+
+// For Reports
+export type MonthlySummary = {
+  month: string; // YYYY-MM
+  sales: number;
+  services: number;
+  expenses: number;
+  profit: number;
+};
+
+export type TransactionTypeFilter = 'all' | 'sale' | 'service' | 'expense';

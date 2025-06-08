@@ -34,7 +34,9 @@ import {
   ClipboardList,
   ShieldCheck,
   Loader2,
-  Users // Added Users icon
+  Users,
+  BarChart3, // Added BarChart3 icon for reports
+  ListOrdered // Added ListOrdered for manage transactions
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import Loading from '@/app/loading'; 
@@ -45,12 +47,14 @@ const mainNavItems = [
   { href: '/services', label: 'Record Service', icon: Wrench },
   { href: '/expenses', label: 'Record Expense', icon: BadgeDollarSign },
   { href: '/transactions', label: 'Transactions', icon: ScrollText },
+  { href: '/reports', label: 'Reports', icon: BarChart3 }, // Added Reports link
   { href: '/recommendations', label: 'Price AI', icon: Lightbulb },
 ];
 
 const adminNavItems = [
  { href: '/admin/manage-services', label: 'Manage Services', icon: ClipboardList },
- { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users }, // Added Manage Accounts
+ { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users },
+ { href: '/admin/manage-transactions', label: 'Manage Transactions', icon: ListOrdered }, // Added Manage Transactions link
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -80,11 +84,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }
 
   if (!currentUser && pathname !== '/login') {
+    // This case should ideally be caught by the useEffect redirect,
+    // but as a fallback, show loading until redirect happens.
     return <Loading />;
   }
   
+  // If after loading, still no current user (and not on login page),
+  // it implies an issue or a state where user should be redirected.
+  // Showing loading is a safe fallback before redirection logic in useEffect kicks in.
   if (!currentUser) {
-      return <Loading />;
+      return <Loading />; // Or a more specific "Redirecting to login..." message
   }
 
 
