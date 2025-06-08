@@ -68,26 +68,26 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       return undefined;
     }
 
-    const currentTransactions = transactions;
-    const transactionIndex = currentTransactions.findIndex(tx => tx.id === transactionId && tx.type === 'service');
+    // Find the current transaction first
+    const currentTransaction = transactions.find(tx => tx.id === transactionId && tx.type === 'service') as ServiceTransaction | undefined;
 
-    if (transactionIndex === -1) {
+    if (!currentTransaction) {
       // Transaction not found or not a service
       return undefined;
     }
-
-    const originalTransaction = currentTransactions[transactionIndex] as ServiceTransaction;
+    
+    const originalTransaction = currentTransaction; // Alias for clarity
 
     const trimmedNewNoteText = newNoteText?.trim();
     const noteAdded = !!(trimmedNewNoteText && trimmedNewNoteText !== "");
     const statusChanged = status !== originalTransaction.status;
 
-    // If nothing actually changed, return the original transaction
+    // If nothing actually changed, return the original transaction without updating state
     if (!noteAdded && !statusChanged) {
       return originalTransaction;
     }
 
-    const newProgressNotes = [...originalTransaction.progressNotes];
+    const newProgressNotes = [...(originalTransaction.progressNotes || [])]; // Ensure progressNotes is iterable
     if (noteAdded) {
       newProgressNotes.push({
         id: crypto.randomUUID(),
@@ -102,12 +102,14 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       progressNotes: newProgressNotes,
     };
     
-    setTransactions(prev => 
-      prev.map(tx => (tx.id === transactionId ? updatedTransaction : tx))
+    // Update the state
+    setTransactions(prevTransactions => 
+      prevTransactions.map(tx => (tx.id === transactionId ? updatedTransaction : tx))
     );
 
+    // Return the updated transaction
     return updatedTransaction;
-  }, [transactions, setTransactions]);
+  }, [transactions, setTransactions]); // Added setTransactions to dependencies
 
   return (
     <TransactionContext.Provider value={{ transactions, addTransaction, getTransactionById, updateServiceProgress }}>
