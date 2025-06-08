@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -11,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useTransactions } from '@/context/transaction-context';
 import { useToast } from '@/hooks/use-toast';
 import { Wrench, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const serviceFormSchema = z.object({
   serviceName: z.string().min(1, "Service name is required"),
@@ -23,6 +25,7 @@ type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 export default function RecordServicePage() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
@@ -33,12 +36,10 @@ export default function RecordServicePage() {
     },
   });
 
-  const onSubmit = async (data: ServiceFormValues) => {
+  const onSubmit = (data: ServiceFormValues) => {
     setIsLoading(true);
     try {
-      // Simulating an async operation
-      // await new Promise(resolve => setTimeout(resolve, 1000));
-      addTransaction({
+      const newTransaction = addTransaction({
         type: 'service',
         serviceName: data.serviceName,
         customerName: data.customerName,
@@ -49,6 +50,9 @@ export default function RecordServicePage() {
         description: "The service income has been successfully recorded.",
       });
       form.reset();
+      if (newTransaction && newTransaction.id) {
+        router.push(`/transactions/${newTransaction.id}`);
+      }
     } catch (error) {
       toast({
         title: "Error",

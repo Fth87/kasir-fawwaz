@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -6,7 +7,7 @@ import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransacti
 
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'> | Omit<ExpenseTransaction, 'id'|'date'>) => void;
+  addTransaction: (transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'> | Omit<ExpenseTransaction, 'id'|'date'>) => Transaction;
   getTransactionById: (id: string) => Transaction | undefined;
 }
 
@@ -48,6 +49,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     }
     
     setTransactions(prev => [newTransaction, ...prev]);
+    return newTransaction;
   }, []);
 
   const getTransactionById = useCallback((id: string) => {

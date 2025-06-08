@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -12,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useTransactions } from '@/context/transaction-context';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const saleItemSchema = z.object({
   name: z.string().min(1, "Item name is required"),
@@ -29,6 +31,7 @@ type SaleFormValues = z.infer<typeof saleFormSchema>;
 export default function RecordSalePage() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),
@@ -43,18 +46,16 @@ export default function RecordSalePage() {
     name: "items",
   });
 
-  const onSubmit = async (data: SaleFormValues) => {
+  const onSubmit = (data: SaleFormValues) => {
     setIsLoading(true);
     try {
-      // Simulating an async operation
-      // await new Promise(resolve => setTimeout(resolve, 1000));
       const saleItems = data.items.map(item => ({
         name: item.name,
         quantity: item.quantity,
         pricePerItem: item.pricePerItem,
       }));
 
-      addTransaction({
+      const newTransaction = addTransaction({
         type: 'sale',
         customerName: data.customerName,
         items: saleItems,
@@ -65,6 +66,9 @@ export default function RecordSalePage() {
         description: "The sale has been successfully recorded.",
       });
       form.reset();
+      if (newTransaction && newTransaction.id) {
+        router.push(`/transactions/${newTransaction.id}`);
+      }
     } catch (error) {
       toast({
         title: "Error",
