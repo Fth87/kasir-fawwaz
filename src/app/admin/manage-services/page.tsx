@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTransactions } from '@/context/transaction-context';
 import type { ServiceTransaction } from '@/types';
@@ -11,10 +11,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ClipboardList, Settings, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ManageServicesPage() {
   const { transactions } = useTransactions();
-  const serviceTransactions = transactions.filter(tx => tx.type === 'service') as ServiceTransaction[];
+  const [isClient, setIsClient] = useState(false);
+  const [serviceTransactions, setServiceTransactions] = useState<ServiceTransaction[]>([]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      setServiceTransactions(transactions.filter(tx => tx.type === 'service') as ServiceTransaction[]);
+    }
+  }, [isClient, transactions]);
 
   return (
     <Card>
@@ -25,7 +37,14 @@ export default function ManageServicesPage() {
         <CardDescription>View and update progress for all service transactions.</CardDescription>
       </CardHeader>
       <CardContent>
-        {serviceTransactions.length === 0 ? (
+        {!isClient ? (
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : serviceTransactions.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No service transactions recorded yet.</p>
         ) : (
           <Table>
@@ -70,3 +89,4 @@ export default function ManageServicesPage() {
     </Card>
   );
 }
+
