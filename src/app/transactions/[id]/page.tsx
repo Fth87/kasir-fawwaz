@@ -166,7 +166,7 @@ export default function ReceiptPage() {
                   <div className="text-center">
                     <p className={sectionTitleClass}>Track Service Progress</p>
                     <div className="flex flex-col items-center gap-2 my-4">
-                      <QRCodeCanvas value={qrCodeUrl} size={128} bgColor="var(--background)" fgColor="var(--foreground)"/>
+                      <QRCodeCanvas value={qrCodeUrl} size={128} bgColor="#FFFFFF" fgColor="#000000"/>
                       <a href={qrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
                         {qrCodeUrl}
                       </a>
@@ -203,26 +203,28 @@ export default function ReceiptPage() {
           <p className="text-center text-xs text-muted-foreground pt-4">Thank you for your business!</p>
 
         </CardContent>
-        <CardFooter className="p-6 flex flex-col sm:flex-row gap-2 print:hidden">
-          <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
+        <CardFooter className="p-6 flex flex-col sm:flex-row justify-between items-center gap-3 print:hidden">
+          <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto order-1 sm:order-none">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
-          <div className="flex-grow" />
-          {transaction.type === 'service' && (
-             <Button asChild variant="outline" className="w-full sm:w-auto">
-                <Link href={`/admin/service-management/${transaction.id}`}>
-                    <Settings className="mr-2 h-4 w-4" /> Manage
-                </Link>
-             </Button>
-          )}
-          <Button variant="outline" onClick={handleShare} className="w-full sm:w-auto">
-            <Share2 className="mr-2 h-4 w-4" /> Share
-          </Button>
-          <Button onClick={handlePrint} className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Printer className="mr-2 h-4 w-4" /> Print Receipt
-          </Button>
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto order-2 sm:order-none">
+            {transaction.type === 'service' && (
+               <Button asChild variant="outline" className="w-full sm:w-auto">
+                  <Link href={`/admin/service-management/${transaction.id}`}>
+                      <Settings className="mr-2 h-4 w-4" /> Manage
+                  </Link>
+               </Button>
+            )}
+            <Button variant="outline" onClick={handleShare} className="w-full sm:w-auto">
+              <Share2 className="mr-2 h-4 w-4" /> Share
+            </Button>
+            <Button onClick={handlePrint} className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Printer className="mr-2 h-4 w-4" /> Print Receipt
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
