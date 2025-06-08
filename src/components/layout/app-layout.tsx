@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -47,9 +48,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <Sidebar>
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="shrink-0 md:hidden">
-              <SidebarTrigger />
-            </Button>
+            <SidebarTrigger variant="ghost" size="icon" className="shrink-0 md:hidden" />
             <Link href="/" className="flex items-center gap-2 overflow-hidden whitespace-nowrap text-lg font-semibold text-sidebar-foreground transition-colors group-data-[collapsible=icon]:hidden">
               <Smartphone className="h-6 w-6 text-sidebar-primary" />
               Kasir Konter
@@ -80,9 +79,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-4 md:hidden">
-           <Button variant="ghost" size="icon" className="shrink-0">
-             <SidebarTrigger />
-           </Button>
+           <SidebarTrigger variant="ghost" size="icon" className="shrink-0" />
            <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
              <Smartphone className="h-6 w-6 text-primary" />
              Kasir Konter
