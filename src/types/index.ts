@@ -5,6 +5,7 @@ export type SaleItem = {
   quantity: number;
   pricePerItem: number;
   total: number;
+  inventoryItemId?: string; // Optional: to link sale item to inventory item
 };
 
 export type SaleTransaction = {
@@ -92,3 +93,18 @@ export type MonthlySummary = {
 };
 
 export type TransactionTypeFilter = 'all' | 'sale' | 'service' | 'expense';
+
+// --- Inventory Types ---
+export type InventoryItem = {
+  id: string;
+  name: string;
+  sku?: string; // Stock Keeping Unit (optional)
+  stockQuantity: number;
+  purchasePrice: number; // Harga beli
+  sellingPrice: number; // Harga jual
+  lastRestocked?: string; // ISO date string
+  lowStockThreshold?: number; // Optional threshold for low stock warning
+};
+
+export type NewInventoryItemInput = Omit<InventoryItem, 'id'>;
+export type UpdateInventoryItemInput = Partial<Omit<InventoryItem, 'id'>>;
