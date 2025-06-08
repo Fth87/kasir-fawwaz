@@ -8,7 +8,7 @@ import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransacti
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Share2, Smartphone, Settings } from 'lucide-react';
+import { ArrowLeft, Printer, Share2, Smartphone, Settings, Home, Phone } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import Link from 'next/link';
 
@@ -43,20 +43,26 @@ export default function ReceiptPage() {
   
   const handleShare = async () => {
     if (navigator.share && transaction) {
-      let shareText = `Receipt for Kasir Konter\nTransaction ID: ${transaction.id}\nDate: ${new Date(transaction.date).toLocaleString('id-ID')}\n\n`;
+      let shareText = `Receipt for Kasir Konter\nTransaction ID: ${transaction.id.substring(0,8)}\nDate: ${new Date(transaction.date).toLocaleString('id-ID')}\n\n`;
       if (transaction.type === 'sale') {
-        shareText += `Customer: ${transaction.customerName || 'N/A'}\nItems:\n`;
-        transaction.items.forEach(item => {
+        const saleTx = transaction as SaleTransaction;
+        shareText += `Customer: ${saleTx.customerName || 'N/A'}\nItems:\n`;
+        saleTx.items.forEach(item => {
           shareText += `- ${item.name} (x${item.quantity}): ${formatCurrency(item.total)}\n`;
         });
-        shareText += `\nGrand Total: ${formatCurrency(transaction.grandTotal)}`;
+        shareText += `\nGrand Total: ${formatCurrency(saleTx.grandTotal)}`;
       } else if (transaction.type === 'service') {
-        shareText += `Customer: ${transaction.customerName || 'N/A'}\nService: ${transaction.serviceName}\nFee: ${formatCurrency(transaction.serviceFee)}`;
+        const serviceTx = transaction as ServiceTransaction;
+        shareText += `Customer: ${serviceTx.customerName || 'N/A'}\n`;
+        if (serviceTx.customerPhone) shareText += `Phone: ${serviceTx.customerPhone}\n`;
+        if (serviceTx.customerAddress) shareText += `Address: ${serviceTx.customerAddress}\n`;
+        shareText += `Service: ${serviceTx.serviceName}\nFee: ${formatCurrency(serviceTx.serviceFee)}`;
         if(qrCodeUrl) {
           shareText += `\nTrack Progress: ${qrCodeUrl}`;
         }
-      } else {
-        shareText += `Expense: ${transaction.description}\nCategory: ${transaction.category || 'N/A'}\nAmount: ${formatCurrency(transaction.amount)}`;
+      } else { // expense
+        const expenseTx = transaction as ExpenseTransaction;
+        shareText += `Expense: ${expenseTx.description}\nCategory: ${expenseTx.category || 'N/A'}\nAmount: ${formatCurrency(expenseTx.amount)}`;
       }
 
       try {
@@ -151,6 +157,18 @@ export default function ReceiptPage() {
                   <p className={valueClass}>{(transaction as ServiceTransaction).customerName}</p>
                 </div>
               )}
+              {(transaction as ServiceTransaction).customerPhone && (
+                <div>
+                  <p className={sectionTitleClass}>Phone</p>
+                  <p className={valueClass}>{(transaction as ServiceTransaction).customerPhone}</p>
+                </div>
+              )}
+              {(transaction as ServiceTransaction).customerAddress && (
+                <div>
+                  <p className={sectionTitleClass}>Address</p>
+                  <p className={valueClass + " whitespace-pre-wrap"}>{(transaction as ServiceTransaction).customerAddress}</p>
+                </div>
+              )}
               <div>
                 <p className={sectionTitleClass}>Service Rendered</p>
                 <p className={valueClass}>{(transaction as ServiceTransaction).serviceName}</p>
@@ -204,10 +222,10 @@ export default function ReceiptPage() {
 
         </CardContent>
         <CardFooter className="p-6 flex flex-col sm:flex-row justify-between items-center gap-3 print:hidden">
-          <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto order-1 sm:order-none">
+          <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto order-last sm:order-first mt-2 sm:mt-0">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto order-2 sm:order-none">
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto order-first sm:order-last">
             {transaction.type === 'service' && (
                <Button asChild variant="outline" className="w-full sm:w-auto">
                   <Link href={`/admin/service-management/${transaction.id}`}>
@@ -227,4 +245,3 @@ export default function ReceiptPage() {
     </div>
   );
 }
-

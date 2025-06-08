@@ -1,3 +1,4 @@
+
 export type SaleItem = {
   id: string;
   name: string;
@@ -42,6 +43,8 @@ export type ServiceTransaction = {
   date: string; // ISO string
   serviceName: string;
   customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
   serviceFee: number;
   status: ServiceStatusValue;
   progressNotes: ProgressNote[];

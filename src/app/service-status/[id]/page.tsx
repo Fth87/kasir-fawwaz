@@ -9,13 +9,13 @@ import { getServiceStatusLabel } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Smartphone, CheckCircle, Info, Clock, MessageSquare, CircleSlash } from 'lucide-react';
-import { Timeline, TimelineItem, TimelineConnector, TimelineHeader, TimelineIcon, TimelineTitle, TimelineBody } from '@/components/ui/timeline'; // Assuming a Timeline component exists or will be created
+import { ArrowLeft, Smartphone, CheckCircle, Info, Clock, MessageSquare, CircleSlash, Home, Phone } from 'lucide-react';
+import { Timeline, TimelineItem, TimelineConnector, TimelineHeader, TimelineIcon, TimelineTitle, TimelineBody } from '@/components/ui/timeline';
 
 export default function ServiceStatusPage() {
   const params = useParams();
   const router = useRouter();
-  const { getTransactionById, transactions } = useTransactions(); // Watch transactions for updates
+  const { getTransactionById, transactions } = useTransactions();
   const [service, setService] = useState<ServiceTransaction | null | undefined>(undefined);
 
   useEffect(() => {
@@ -24,19 +24,18 @@ export default function ServiceStatusPage() {
       if (tx && tx.type === 'service') {
         setService(tx);
       } else {
-        setService(null); // Not found or not a service
+        setService(null);
       }
     }
-  }, [params.id, getTransactionById, transactions]); // Add transactions to dependency array
+  }, [params.id, getTransactionById, transactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   };
 
-  const getStatusIcon = (statusInput: ServiceTransaction['status'] | undefined) => {
-    // Guard against undefined or non-string status
+  const getStatusIcon = (statusInput?: ServiceTransaction['status']) => {
     if (typeof statusInput !== 'string') {
-      return <Info className="h-5 w-5 text-blue-500" />; // Default icon
+      return <Info className="h-5 w-5 text-blue-500" />; 
     }
     if (statusInput.startsWith('COMPLETED')) return <CheckCircle className="h-5 w-5 text-green-500" />;
     if (statusInput === 'CANCELLED') return <CircleSlash className="h-5 w-5 text-red-500" />;
@@ -87,6 +86,18 @@ export default function ServiceStatusPage() {
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground">Customer Name</h3>
                 <p className="font-medium">{service.customerName}</p>
+              </div>
+            )}
+            {service.customerPhone && (
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground flex items-center"><Phone className="h-4 w-4 mr-1"/> Phone</h3>
+                <p className="font-medium">{service.customerPhone}</p>
+              </div>
+            )}
+             {service.customerAddress && (
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-semibold text-muted-foreground flex items-center"><Home className="h-4 w-4 mr-1"/> Address</h3>
+                <p className="font-medium whitespace-pre-wrap">{service.customerAddress}</p>
               </div>
             )}
             <div>
@@ -141,4 +152,3 @@ export default function ServiceStatusPage() {
     </div>
   );
 }
-

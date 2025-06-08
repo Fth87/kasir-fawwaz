@@ -16,10 +16,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings, MessageSquare, CheckCircle, Info, Clock, CircleSlash, Loader2 } from 'lucide-react';
+import { ArrowLeft, Settings, MessageSquare, CheckCircle, Info, Clock, CircleSlash, Loader2, Home, Phone, MessageCircle } from 'lucide-react';
 
 const updateServiceSchema = z.object({
-  status: z.string().min(1, "Status is required"), // Will validate against ServiceStatusValue values
+  status: z.string().min(1, "Status is required"), 
   newNote: z.string().optional(),
 });
 
@@ -59,8 +59,8 @@ export default function ManageServiceProgressPage() {
     try {
       const updatedService = updateServiceProgress(service.id, data.status as ServiceStatusValue, data.newNote);
       if (updatedService) {
-        setService(updatedService); // Re-sync local state if needed, though context should update
-        form.setValue('newNote', ''); // Clear new note field
+        setService(updatedService); 
+        form.setValue('newNote', ''); 
         toast({
           title: "Service Progress Updated",
           description: `Status set to ${getServiceStatusLabel(data.status as ServiceStatusValue)}. Note added if provided.`,
@@ -80,16 +80,51 @@ export default function ManageServiceProgressPage() {
     }
   };
   
-  const getStatusIcon = (statusInput: ServiceTransaction['status'] | undefined) => {
-    // Guard against undefined or non-string status
+  const getStatusIcon = (statusInput?: ServiceTransaction['status']) => {
     if (typeof statusInput !== 'string') {
-      return <Info className="h-5 w-5 text-blue-500" />; // Default icon
+      return <Info className="h-5 w-5 text-blue-500" />; 
     }
     if (statusInput.startsWith('COMPLETED')) return <CheckCircle className="h-5 w-5 text-green-500" />;
     if (statusInput === 'CANCELLED') return <CircleSlash className="h-5 w-5 text-red-500" />;
     if (statusInput === 'AWAITING_PARTS' || statusInput.includes('DIAGNOSIS') || statusInput.includes('REPAIR')) return <Clock className="h-5 w-5 text-yellow-500" />;
     return <Info className="h-5 w-5 text-blue-500" />;
   }
+
+  const formatPhoneNumberForWhatsApp = (phone?: string): string => {
+    if (!phone) return '';
+    let cleaned = phone.replace(/\D/g, ''); 
+    if (cleaned.startsWith('0')) {
+      cleaned = '62' + cleaned.substring(1);
+    } else if (!cleaned.startsWith('62')) {
+      // Basic assumption for Indonesian numbers not starting with 0 or 62
+      // You might want a more robust library for international numbers
+      cleaned = '62' + cleaned; 
+    }
+    return cleaned;
+  };
+
+  const handleWhatsAppNotification = () => {
+    if (!service || !service.customerPhone) {
+      toast({ title: "Error", description: "Customer phone number is not available.", variant: "destructive" });
+      return;
+    }
+    const formattedPhone = formatPhoneNumberForWhatsApp(service.customerPhone);
+    const serviceName = service.serviceName;
+    const serviceId = service.id.substring(0, 8);
+    const currentStatusLabel = getServiceStatusLabel(service.status);
+
+    let message = `Halo ${service.customerName || 'Pelanggan'}, servis untuk ${serviceName} (ID: ${serviceId}) Anda telah diperbarui.`;
+    if (service.status === 'READY_FOR_PICKUP') {
+      message = `Halo ${service.customerName || 'Pelanggan'}, servis untuk ${serviceName} (ID: ${serviceId}) Anda sudah SELESAI dan SIAP DIAMBIL. Terima kasih.`;
+    } else if (service.status === 'COMPLETED_COLLECTED') {
+      message = `Halo ${service.customerName || 'Pelanggan'}, terima kasih telah menggunakan jasa servis kami untuk ${serviceName} (ID: ${serviceId}).`;
+    } else {
+      message += ` Status saat ini: ${currentStatusLabel}.`;
+    }
+    
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
 
   if (service === undefined) {
@@ -101,8 +136,8 @@ export default function ManageServiceProgressPage() {
       <div className="text-center py-10">
         <h2 className="text-2xl font-semibold mb-4">Service Not Found</h2>
         <p className="text-muted-foreground mb-6">The service record you are trying to manage does not exist or is invalid.</p>
-        <Button onClick={() => router.push('/transactions')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Transactions
+        <Button onClick={() => router.push('/admin/manage-services')}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Manage Services
         </Button>
       </div>
     );
@@ -128,7 +163,7 @@ export default function ManageServiceProgressPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <p className="text-sm text-muted-foreground">Service Name</p>
                   <p className="font-semibold">{service.serviceName}</p>
@@ -137,6 +172,18 @@ export default function ManageServiceProgressPage() {
                   <p className="text-sm text-muted-foreground">Customer</p>
                   <p className="font-semibold">{service.customerName || 'N/A'}</p>
                 </div>
+                {service.customerPhone && (
+                  <div>
+                    <p className="text-sm text-muted-foreground flex items-center"><Phone className="h-4 w-4 mr-1"/> Phone</p>
+                    <p className="font-semibold">{service.customerPhone}</p>
+                  </div>
+                )}
+                {service.customerAddress && (
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-muted-foreground flex items-center"><Home className="h-4 w-4 mr-1"/> Address</p>
+                    <p className="font-semibold whitespace-pre-wrap">{service.customerAddress}</p>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -182,6 +229,11 @@ export default function ManageServiceProgressPage() {
                   </FormItem>
                 )}
               />
+              {service.customerPhone && (
+                <Button type="button" variant="outline" onClick={handleWhatsAppNotification} className="w-full sm:w-auto">
+                  <MessageCircle className="mr-2 h-4 w-4" /> Notify Customer via WhatsApp
+                </Button>
+              )}
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button type="button" variant="outline" onClick={() => router.back()}>

@@ -6,9 +6,17 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction, ServiceStatusValue, ProgressNote } from '@/types';
 import { ServiceStatusOptions } from '@/types';
 
+// Define more specific types for addTransaction input based on transaction type
+type AddSaleTransactionInput = Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]};
+type AddServiceTransactionInput = Omit<ServiceTransaction, 'id'|'date'|'status'|'progressNotes'>;
+type AddExpenseTransactionInput = Omit<ExpenseTransaction, 'id'|'date'>;
+
+type AddTransactionInput = AddSaleTransactionInput | AddServiceTransactionInput | AddExpenseTransactionInput;
+
+
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'|'status'|'progressNotes'> | Omit<ExpenseTransaction, 'id'|'date'>) => Transaction;
+  addTransaction: (transactionData: AddTransactionInput) => Transaction;
   getTransactionById: (id: string) => Transaction | undefined;
   updateServiceProgress: (transactionId: string, status: ServiceStatusValue, newNoteText?: string) => ServiceTransaction | undefined;
 }
@@ -21,7 +29,12 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     if (IS_BROWSER) {
       const storedTransactions = localStorage.getItem('transactions');
-      return storedTransactions ? JSON.parse(storedTransactions) : [];
+      try {
+        return storedTransactions ? JSON.parse(storedTransactions) : [];
+      } catch (e) {
+        console.error("Failed to parse transactions from localStorage", e);
+        return [];
+      }
     }
     return [];
   });
@@ -32,27 +45,30 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [transactions]);
 
-  const addTransaction = useCallback((transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'|'status'|'progressNotes'> | Omit<ExpenseTransaction, 'id'|'date'>) => {
+  const addTransaction = useCallback((transactionData: AddTransactionInput): Transaction => {
     let newTransaction: Transaction;
     const commonData = { id: crypto.randomUUID(), date: new Date().toISOString() };
 
     if (transactionData.type === 'sale') {
-      const itemsWithTotals = transactionData.items.map(item => ({
+      const saleData = transactionData as AddSaleTransactionInput;
+      const itemsWithTotals = saleData.items.map(item => ({
         ...item,
         id: crypto.randomUUID(),
         total: item.quantity * item.pricePerItem
       }));
       const grandTotal = itemsWithTotals.reduce((sum, item) => sum + item.total, 0);
-      newTransaction = { ...commonData, ...transactionData, items: itemsWithTotals, grandTotal } as SaleTransaction;
+      newTransaction = { ...commonData, ...saleData, items: itemsWithTotals, grandTotal } as SaleTransaction;
     } else if (transactionData.type === 'service') {
+      const serviceData = transactionData as AddServiceTransactionInput;
       newTransaction = {
         ...commonData,
-        ...transactionData,
+        ...serviceData,
         status: ServiceStatusOptions[0].value, // Default status
         progressNotes: []
       } as ServiceTransaction;
     } else { // expense
-      newTransaction = { ...commonData, ...transactionData } as ExpenseTransaction;
+      const expenseData = transactionData as AddExpenseTransactionInput;
+      newTransaction = { ...commonData, ...expenseData } as ExpenseTransaction;
     }
 
     setTransactions(prev => [newTransaction, ...prev]);
@@ -63,53 +79,54 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     return transactions.find(tx => tx.id === id);
   }, [transactions]);
 
-  const updateServiceProgress = useCallback((transactionId: string, status: ServiceStatusValue, newNoteText?: string): ServiceTransaction | undefined => {
-    if (!transactionId) {
-      return undefined;
-    }
+ const updateServiceProgress = useCallback((transactionId: string, status: ServiceStatusValue, newNoteText?: string): ServiceTransaction | undefined => {
+    let successfullyUpdatedTransaction: ServiceTransaction | undefined = undefined;
 
-    // Find the current transaction first
-    const currentTransaction = transactions.find(tx => tx.id === transactionId && tx.type === 'service') as ServiceTransaction | undefined;
+    setTransactions(prevTransactions => {
+      const transactionIndex = prevTransactions.findIndex(tx => tx.id === transactionId && tx.type === 'service');
 
-    if (!currentTransaction) {
-      // Transaction not found or not a service
-      return undefined;
-    }
+      if (transactionIndex === -1) {
+        // Transaction not found or not a service, return previous state
+        return prevTransactions;
+      }
+
+      const originalTransaction = prevTransactions[transactionIndex] as ServiceTransaction;
+
+      const trimmedNewNoteText = newNoteText?.trim();
+      const noteAdded = !!(trimmedNewNoteText && trimmedNewNoteText !== "");
+      const statusChanged = status !== originalTransaction.status;
+
+      if (!noteAdded && !statusChanged) {
+        // Nothing actually changed, store original transaction for return, and return previous state
+        successfullyUpdatedTransaction = originalTransaction;
+        return prevTransactions;
+      }
+
+      const newProgressNotes = [...(originalTransaction.progressNotes || [])];
+      if (noteAdded) {
+        newProgressNotes.push({
+          id: crypto.randomUUID(),
+          note: trimmedNewNoteText!,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const updatedTransaction: ServiceTransaction = {
+        ...originalTransaction,
+        status,
+        progressNotes: newProgressNotes,
+      };
+      
+      successfullyUpdatedTransaction = updatedTransaction; // Store for return
+
+      const newTransactions = [...prevTransactions];
+      newTransactions[transactionIndex] = updatedTransaction;
+      return newTransactions;
+    });
     
-    const originalTransaction = currentTransaction; // Alias for clarity
+    return successfullyUpdatedTransaction;
+  }, [transactions, setTransactions]);
 
-    const trimmedNewNoteText = newNoteText?.trim();
-    const noteAdded = !!(trimmedNewNoteText && trimmedNewNoteText !== "");
-    const statusChanged = status !== originalTransaction.status;
-
-    // If nothing actually changed, return the original transaction without updating state
-    if (!noteAdded && !statusChanged) {
-      return originalTransaction;
-    }
-
-    const newProgressNotes = [...(originalTransaction.progressNotes || [])]; // Ensure progressNotes is iterable
-    if (noteAdded) {
-      newProgressNotes.push({
-        id: crypto.randomUUID(),
-        note: trimmedNewNoteText!,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const updatedTransaction: ServiceTransaction = {
-      ...originalTransaction,
-      status,
-      progressNotes: newProgressNotes,
-    };
-    
-    // Update the state
-    setTransactions(prevTransactions => 
-      prevTransactions.map(tx => (tx.id === transactionId ? updatedTransaction : tx))
-    );
-
-    // Return the updated transaction
-    return updatedTransaction;
-  }, [transactions, setTransactions]); // Added setTransactions to dependencies
 
   return (
     <TransactionContext.Provider value={{ transactions, addTransaction, getTransactionById, updateServiceProgress }}>

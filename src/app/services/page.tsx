@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useTransactions } from '@/context/transaction-context';
@@ -17,6 +18,10 @@ import { useRouter } from 'next/navigation';
 const serviceFormSchema = z.object({
   serviceName: z.string().min(1, "Service name is required"),
   customerName: z.string().optional(),
+  customerPhone: z.string().optional().refine(val => !val || /^[0-9\s+-]+$/.test(val), {
+    message: "Invalid phone number format",
+  }),
+  customerAddress: z.string().optional(),
   serviceFee: z.coerce.number().min(0, "Service fee must be non-negative"),
 });
 
@@ -32,6 +37,8 @@ export default function RecordServicePage() {
     defaultValues: {
       serviceName: "",
       customerName: "",
+      customerPhone: "",
+      customerAddress: "",
       serviceFee: 0,
     },
   });
@@ -43,6 +50,8 @@ export default function RecordServicePage() {
         type: 'service',
         serviceName: data.serviceName,
         customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerAddress: data.customerAddress,
         serviceFee: data.serviceFee,
       });
       toast({
@@ -96,6 +105,32 @@ export default function RecordServicePage() {
                   <FormLabel>Customer Name (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter customer name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="customerPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Customer Phone (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="tel" placeholder="e.g., 08123456789" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="customerAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Customer Address (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Enter customer address" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
