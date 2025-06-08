@@ -68,57 +68,46 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       return undefined;
     }
 
-    let successfullyUpdatedTransaction: ServiceTransaction | undefined;
+    const currentTransactions = transactions;
+    const transactionIndex = currentTransactions.findIndex(tx => tx.id === transactionId && tx.type === 'service');
 
-    setTransactions(prevTransactions => {
-      const transactionIndex = prevTransactions.findIndex(tx => tx.id === transactionId && tx.type === 'service');
+    if (transactionIndex === -1) {
+      // Transaction not found or not a service
+      return undefined;
+    }
 
-      if (transactionIndex === -1) {
-        // Transaction not found or not a service, so no update will occur.
-        // successfullyUpdatedTransaction remains undefined.
-        return prevTransactions; // Return original state
-      }
+    const originalTransaction = currentTransactions[transactionIndex] as ServiceTransaction;
 
-      const originalTransaction = prevTransactions[transactionIndex] as ServiceTransaction;
+    const trimmedNewNoteText = newNoteText?.trim();
+    const noteAdded = !!(trimmedNewNoteText && trimmedNewNoteText !== "");
+    const statusChanged = status !== originalTransaction.status;
 
-      const newProgressNotes = [...originalTransaction.progressNotes];
-      let noteAdded = false;
-      if (newNoteText && newNoteText.trim() !== "") {
-        newProgressNotes.push({
-          id: crypto.randomUUID(),
-          note: newNoteText.trim(),
-          timestamp: new Date().toISOString(),
-        });
-        noteAdded = true;
-      }
+    // If nothing actually changed, return the original transaction
+    if (!noteAdded && !statusChanged) {
+      return originalTransaction;
+    }
 
-      const statusChanged = status !== originalTransaction.status;
+    const newProgressNotes = [...originalTransaction.progressNotes];
+    if (noteAdded) {
+      newProgressNotes.push({
+        id: crypto.randomUUID(),
+        note: trimmedNewNoteText!,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
-      // If nothing actually changed, we can avoid creating a new transactions array.
-      // We'll still return the transaction as if "updated" to satisfy the caller's expectation of getting a transaction object back.
-      if (!noteAdded && !statusChanged) {
-        successfullyUpdatedTransaction = originalTransaction;
-        return prevTransactions;
-      }
+    const updatedTransaction: ServiceTransaction = {
+      ...originalTransaction,
+      status,
+      progressNotes: newProgressNotes,
+    };
+    
+    setTransactions(prev => 
+      prev.map(tx => (tx.id === transactionId ? updatedTransaction : tx))
+    );
 
-      const updatedTransaction: ServiceTransaction = {
-        ...originalTransaction,
-        status,
-        progressNotes: newProgressNotes,
-      };
-      
-      successfullyUpdatedTransaction = updatedTransaction;
-
-      const newTransactions = [
-        ...prevTransactions.slice(0, transactionIndex),
-        updatedTransaction,
-        ...prevTransactions.slice(transactionIndex + 1),
-      ];
-      return newTransactions;
-    });
-
-    return successfullyUpdatedTransaction;
-  }, []);
+    return updatedTransaction;
+  }, [transactions, setTransactions]);
 
   return (
     <TransactionContext.Provider value={{ transactions, addTransaction, getTransactionById, updateServiceProgress }}>
@@ -134,4 +123,3 @@ export const useTransactions = () => {
   }
   return context;
 };
-
