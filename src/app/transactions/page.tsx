@@ -76,8 +76,9 @@ export default function TransactionsPage() {
                     </Button>
                     {tx.type === 'service' && (
                       <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/service-management/${tx.id}`}>
-                          <Settings className="mr-1 h-4 w-4" /> Manage
+                        <Link href={`/admin/service-management/${tx.id}`} className="flex items-center justify-center">
+                          <Settings className="mr-1 h-4 w-4 shrink-0" /> 
+                          <span>Manage</span>
                         </Link>
                       </Button>
                     )}

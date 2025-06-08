@@ -75,8 +75,9 @@ export default function ManageServicesPage() {
                       </Link>
                     </Button>
                     <Button asChild variant="default" size="sm">
-                      <Link href={`/admin/service-management/${tx.id}`}>
-                        <Settings className="mr-1 h-4 w-4" /> Manage
+                      <Link href={`/admin/service-management/${tx.id}`} className="flex items-center justify-center">
+                        <Settings className="mr-1 h-4 w-4 shrink-0" /> 
+                        <span>Manage</span>
                       </Link>
                     </Button>
                   </TableCell>

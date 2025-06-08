@@ -228,8 +228,9 @@ export default function ReceiptPage() {
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto order-first sm:order-last">
             {transaction.type === 'service' && (
                <Button asChild variant="outline" className="w-full sm:w-auto">
-                  <Link href={`/admin/service-management/${transaction.id}`}>
-                      <Settings className="mr-2 h-4 w-4" /> Manage
+                  <Link href={`/admin/service-management/${transaction.id}`} className="flex items-center justify-center">
+                      <Settings className="mr-2 h-4 w-4 shrink-0" /> 
+                      <span>Manage</span>
                   </Link>
                </Button>
             )}
@@ -245,3 +246,4 @@ export default function ReceiptPage() {
     </div>
   );
 }
+
