@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -7,7 +8,7 @@ import type { Transaction } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ScrollText, Eye } from 'lucide-react';
+import { ScrollText, Eye, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function TransactionsPage() {
@@ -37,7 +38,7 @@ export default function TransactionsPage() {
         <CardTitle className="text-2xl font-headline flex items-center">
           <ScrollText className="mr-2 h-6 w-6" /> All Transactions
         </CardTitle>
-        <CardDescription>View all recorded sales, services, and expenses.</CardDescription>
+        <CardDescription>View all recorded sales, services, and expenses. You can also manage service progress from here.</CardDescription>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
@@ -50,7 +51,7 @@ export default function TransactionsPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Amount (IDR)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -67,12 +68,19 @@ export default function TransactionsPage() {
                     {tx.type === 'expense' ? '-' : '+'}
                     {formatCurrency(getTransactionAmount(tx))}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
                     <Button asChild variant="outline" size="sm">
                       <Link href={`/transactions/${tx.id}`}>
-                        <Eye className="mr-1 h-4 w-4" /> View
+                        <Eye className="mr-1 h-4 w-4" /> View Receipt
                       </Link>
                     </Button>
+                    {tx.type === 'service' && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/admin/service-management/${tx.id}`}>
+                          <Settings className="mr-1 h-4 w-4" /> Manage
+                        </Link>
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

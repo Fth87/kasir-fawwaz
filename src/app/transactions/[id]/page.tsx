@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -7,19 +8,26 @@ import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransacti
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Share2, Smartphone } from 'lucide-react';
-import Image from 'next/image';
+import { ArrowLeft, Printer, Share2, Smartphone, Settings } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
+import Link from 'next/link';
+
 
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const { getTransactionById } = useTransactions();
-  const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined); // undefined for loading, null for not found
+  const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
 
   useEffect(() => {
     if (params.id) {
-      const tx = getTransactionById(params.id as string);
+      const txId = params.id as string;
+      const tx = getTransactionById(txId);
       setTransaction(tx);
+      if (tx && tx.type === 'service' && typeof window !== 'undefined') {
+        setQrCodeUrl(`${window.location.origin}/service-status/${tx.id}`);
+      }
     }
   }, [params.id, getTransactionById]);
 
@@ -44,6 +52,9 @@ export default function ReceiptPage() {
         shareText += `\nGrand Total: ${formatCurrency(transaction.grandTotal)}`;
       } else if (transaction.type === 'service') {
         shareText += `Customer: ${transaction.customerName || 'N/A'}\nService: ${transaction.serviceName}\nFee: ${formatCurrency(transaction.serviceFee)}`;
+        if(qrCodeUrl) {
+          shareText += `\nTrack Progress: ${qrCodeUrl}`;
+        }
       } else {
         shareText += `Expense: ${transaction.description}\nCategory: ${transaction.category || 'N/A'}\nAmount: ${formatCurrency(transaction.amount)}`;
       }
@@ -79,7 +90,6 @@ export default function ReceiptPage() {
     );
   }
   
-  // Common styles for receipt sections
   const sectionTitleClass = "text-sm font-semibold text-muted-foreground uppercase tracking-wider";
   const valueClass = "font-medium";
 
@@ -150,6 +160,22 @@ export default function ReceiptPage() {
                 <p className="text-lg font-bold">Service Fee</p>
                 <p className="text-lg font-bold text-primary">{formatCurrency((transaction as ServiceTransaction).serviceFee)}</p>
               </div>
+              <Separator />
+              {qrCodeUrl && (
+                <>
+                  <div className="text-center">
+                    <p className={sectionTitleClass}>Track Service Progress</p>
+                    <div className="flex flex-col items-center gap-2 my-4">
+                      <QRCodeCanvas value={qrCodeUrl} size={128} bgColor="var(--background)" fgColor="var(--foreground)"/>
+                      <a href={qrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                        {qrCodeUrl}
+                      </a>
+                      <p className="text-xs text-muted-foreground">Scan QR or click link to track service progress.</p>
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
             </>
           )}
 
@@ -182,6 +208,13 @@ export default function ReceiptPage() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
           <div className="flex-grow" />
+          {transaction.type === 'service' && (
+             <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`/admin/service-management/${transaction.id}`}>
+                    <Settings className="mr-2 h-4 w-4" /> Manage
+                </Link>
+             </Button>
+          )}
           <Button variant="outline" onClick={handleShare} className="w-full sm:w-auto">
             <Share2 className="mr-2 h-4 w-4" /> Share
           </Button>
@@ -193,27 +226,3 @@ export default function ReceiptPage() {
     </div>
   );
 }
-
-// Basic print styles
-const PrintStyles = () => (
-  <style jsx global>{`
-    @media print {
-      body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-        background-color: white !important;
-      }
-      .print\\:p-0 { padding: 0 !important; }
-      .print\\:shadow-none { box-shadow: none !important; }
-      .print\\:border-none { border: none !important; }
-      .print\\:bg-transparent { background-color: transparent !important; }
-      .print\\:text-black { color: black !important; }
-      .print\\:hidden { display: none !important; }
-    }
-  `}</style>
-);
-
-// To activate print styles, include <PrintStyles /> in the component,
-// but it's generally better to handle this in a global CSS file if more widespread print styling is needed.
-// For this specific page, it's okay to leave it out if basic browser print is sufficient or include it here.
-// For now, basic browser print is assumed.

@@ -15,10 +15,12 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarFooter,
+  SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupLabel
 } from '@/components/ui/sidebar';
 import { LogoIcon } from '@/components/icons/logo-icon';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -29,15 +31,21 @@ import {
   LogOut,
   Settings,
   Smartphone,
+  ClipboardList,
+  ShieldCheck
 } from 'lucide-react';
 
-const navItems = [
+const mainNavItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/sales', label: 'Record Sale', icon: ShoppingCart },
   { href: '/services', label: 'Record Service', icon: Wrench },
   { href: '/expenses', label: 'Record Expense', icon: BadgeDollarSign },
   { href: '/transactions', label: 'Transactions', icon: ScrollText },
   { href: '/recommendations', label: 'Price AI', icon: Lightbulb },
+];
+
+const adminNavItems = [
+ { href: '/admin/manage-services', label: 'Manage Services', icon: ClipboardList },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -57,11 +65,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            {navItems.map((item) => (
+            {mainNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <Button
                   asChild
-                  variant={pathname === item.href ? 'secondary' : 'ghost'}
+                  variant={(pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))) ? 'secondary' : 'ghost'}
                   className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
                 >
                   <Link href={item.href} className="flex items-center gap-3">
@@ -72,6 +80,32 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
+          
+          <SidebarSeparator className="my-2" />
+          
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center">
+                <ShieldCheck className="mr-2 h-4 w-4"/>
+                <span className="group-data-[collapsible=icon]:hidden">Admin Area</span>
+            </SidebarGroupLabel>
+            <SidebarMenu>
+                {adminNavItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                    <Button
+                    asChild
+                    variant={(pathname === item.href || pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
+                    className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
+                    >
+                    <Link href={item.href} className="flex items-center gap-3">
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                    </Link>
+                    </Button>
+                </SidebarMenuItem>
+                ))}
+            </SidebarMenu>
+          </SidebarGroup>
+
         </SidebarContent>
         <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
            {/* Placeholder for footer items like settings or logout */}

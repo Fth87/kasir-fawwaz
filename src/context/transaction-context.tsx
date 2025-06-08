@@ -3,12 +3,14 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
+import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction, ServiceStatusValue, ProgressNote } from '@/types';
+import { ServiceStatusOptions } from '@/types';
 
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'> | Omit<ExpenseTransaction, 'id'|'date'>) => Transaction;
+  addTransaction: (transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'|'status'|'progressNotes'> | Omit<ExpenseTransaction, 'id'|'date'>) => Transaction;
   getTransactionById: (id: string) => Transaction | undefined;
+  updateServiceProgress: (transactionId: string, status: ServiceStatusValue, newNoteText?: string) => ServiceTransaction | undefined;
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -30,7 +32,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [transactions]);
 
-  const addTransaction = useCallback((transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'> | Omit<ExpenseTransaction, 'id'|'date'>) => {
+  const addTransaction = useCallback((transactionData: Omit<SaleTransaction, 'id'|'date'|'grandTotal'|'items'> & {items: Omit<SaleTransaction['items'][0],'id'|'total'>[]} | Omit<ServiceTransaction, 'id'|'date'|'status'|'progressNotes'> | Omit<ExpenseTransaction, 'id'|'date'>) => {
     let newTransaction: Transaction;
     const commonData = { id: crypto.randomUUID(), date: new Date().toISOString() };
 
@@ -43,7 +45,12 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       const grandTotal = itemsWithTotals.reduce((sum, item) => sum + item.total, 0);
       newTransaction = { ...commonData, ...transactionData, items: itemsWithTotals, grandTotal } as SaleTransaction;
     } else if (transactionData.type === 'service') {
-      newTransaction = { ...commonData, ...transactionData } as ServiceTransaction;
+      newTransaction = { 
+        ...commonData, 
+        ...transactionData, 
+        status: ServiceStatusOptions[0].value, // Default status
+        progressNotes: [] 
+      } as ServiceTransaction;
     } else { // expense
       newTransaction = { ...commonData, ...transactionData } as ExpenseTransaction;
     }
@@ -56,8 +63,34 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     return transactions.find(tx => tx.id === id);
   }, [transactions]);
 
+  const updateServiceProgress = useCallback((transactionId: string, status: ServiceStatusValue, newNoteText?: string): ServiceTransaction | undefined => {
+    let updatedTx: ServiceTransaction | undefined;
+    setTransactions(prev => 
+      prev.map(tx => {
+        if (tx.id === transactionId && tx.type === 'service') {
+          const newProgressNotes = [...tx.progressNotes];
+          if (newNoteText && newNoteText.trim() !== "") {
+            newProgressNotes.push({
+              id: crypto.randomUUID(),
+              note: newNoteText.trim(),
+              timestamp: new Date().toISOString(),
+            });
+          }
+          updatedTx = {
+            ...tx,
+            status,
+            progressNotes: newProgressNotes,
+          };
+          return updatedTx;
+        }
+        return tx;
+      })
+    );
+    return updatedTx;
+  }, []);
+
   return (
-    <TransactionContext.Provider value={{ transactions, addTransaction, getTransactionById }}>
+    <TransactionContext.Provider value={{ transactions, addTransaction, getTransactionById, updateServiceProgress }}>
       {children}
     </TransactionContext.Provider>
   );
