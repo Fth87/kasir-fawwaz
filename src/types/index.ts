@@ -70,9 +70,14 @@ export function getServiceStatusLabel(statusValue?: ServiceStatusValue): string 
 // --- Auth Types ---
 export type UserRole = 'admin' | 'cashier';
 
+export const UserRoles: UserRole[] = ['admin', 'cashier'];
+
 export type User = {
   id: string;
   username: string;
   password?: string; // Password should not be stored like this in production
   role: UserRole;
 };
+
+// For Add User Form
+export type NewUserInput = Omit<User, 'id'>;

@@ -33,10 +33,11 @@ import {
   Smartphone,
   ClipboardList,
   ShieldCheck,
-  Loader2
+  Loader2,
+  Users // Added Users icon
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import Loading from '@/app/loading'; // Import global loading component
+import Loading from '@/app/loading'; 
 
 const mainNavItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -49,6 +50,7 @@ const mainNavItems = [
 
 const adminNavItems = [
  { href: '/admin/manage-services', label: 'Manage Services', icon: ClipboardList },
+ { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users }, // Added Manage Accounts
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -57,38 +59,30 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { currentUser, isLoadingAuth, logout } = useAuth();
 
   useEffect(() => {
-    if (isLoadingAuth) return; // Wait until auth state is determined
+    if (isLoadingAuth) return; 
 
     if (!currentUser && pathname !== '/login') {
       router.push('/login');
     } else if (currentUser && pathname === '/login') {
-      router.push('/'); // If logged in and on login page, redirect to home
+      router.push('/'); 
     }
   }, [currentUser, isLoadingAuth, pathname, router]);
 
-  // If on login page, and not yet authenticated (or still loading auth), render children directly
-  // This prevents the AppLayout shell from appearing on the login page itself.
   if (pathname === '/login') {
-    if (isLoadingAuth || !currentUser) { // Check !currentUser to ensure redirect to / if logged in
+    if (isLoadingAuth || !currentUser) { 
       return <>{children}</>;
     }
-    // If somehow currentUser is true AND pathname is /login, useEffect will redirect,
-    // but good to have a fallback or return children until redirect happens.
     return <Loading />;
   }
 
-  // If still loading auth status for non-login pages, show a global loader
   if (isLoadingAuth) {
     return <Loading />;
   }
 
-  // If not authenticated and not on login page (redirect should be in progress), show loader
   if (!currentUser && pathname !== '/login') {
     return <Loading />;
   }
   
-  // If currentUser is null but we passed the above checks (shouldn't happen often due to redirect),
-  // it's safer to return a loader or an empty fragment. This indicates an edge case.
   if (!currentUser) {
       return <Loading />;
   }
