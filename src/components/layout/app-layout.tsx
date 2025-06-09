@@ -38,7 +38,8 @@ import {
   BarChart3,
   ListOrdered,
   UserCircle2,
-  Archive, // Icon for Inventory
+  Archive, 
+  Users2, // Icon for Customers
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import Loading from '@/app/loading'; 
@@ -56,6 +57,7 @@ const mainNavItems = [
 const adminNavItems = [
  { href: '/admin/manage-services', label: 'Manage Services', icon: ClipboardList },
  { href: '/admin/manage-inventory', label: 'Manage Inventory', icon: Archive },
+ { href: '/admin/manage-customers', label: 'Manage Customers', icon: Users2 },
  { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users },
  { href: '/admin/manage-transactions', label: 'Manage Transactions', icon: ListOrdered },
 ];

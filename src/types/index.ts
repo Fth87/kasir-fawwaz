@@ -13,7 +13,8 @@ export type SaleTransaction = {
   type: 'sale';
   date: string; // ISO string
   items: SaleItem[];
-  customerName?: string;
+  customerName?: string; // This will be used to link to Customer if customerId is not present
+  customerId?: string; // Optional: to link to a specific customer in CRM
   grandTotal: number;
 };
 
@@ -43,9 +44,10 @@ export type ServiceTransaction = {
   type: 'service';
   date: string; // ISO string
   serviceName: string;
-  customerName?: string;
-  customerPhone?: string;
+  customerName?: string; // Used for display and linking if customerId not present
+  customerPhone?: string; // Used for display and linking if customerId not present
   customerAddress?: string;
+  customerId?: string; // Optional: to link to a specific customer in CRM
   serviceFee: number;
   status: ServiceStatusValue;
   progressNotes: ProgressNote[];
@@ -106,5 +108,20 @@ export type InventoryItem = {
   lowStockThreshold?: number; // Optional threshold for low stock warning
 };
 
-export type NewInventoryItemInput = Omit<InventoryItem, 'id'>;
+export type NewInventoryItemInput = Omit<InventoryItem, 'id' | 'lastRestocked'> & { lastRestocked?: string };
 export type UpdateInventoryItemInput = Partial<Omit<InventoryItem, 'id'>>;
+
+// --- Customer (CRM) Types ---
+export type Customer = {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+};
+
+export type NewCustomerInput = Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateCustomerInput = Partial<NewCustomerInput>;

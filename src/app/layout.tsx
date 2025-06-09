@@ -4,7 +4,8 @@ import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
 import { TransactionProvider } from '@/context/transaction-context';
 import { AuthProvider } from '@/context/auth-context';
-import { InventoryProvider } from '@/context/inventory-context'; // Import InventoryProvider
+import { InventoryProvider } from '@/context/inventory-context';
+import { CustomerProvider } from '@/context/customer-context'; // Import CustomerProvider
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
@@ -26,11 +27,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <InventoryProvider> {/* Wrap with InventoryProvider */}
-            <TransactionProvider>
-              <AppLayout>{children}</AppLayout>
-              <Toaster />
-            </TransactionProvider>
+          <InventoryProvider>
+            <CustomerProvider> {/* Wrap with CustomerProvider */}
+              <TransactionProvider>
+                <AppLayout>{children}</AppLayout>
+                <Toaster />
+              </TransactionProvider>
+            </CustomerProvider>
           </InventoryProvider>
         </AuthProvider>
       </body>
