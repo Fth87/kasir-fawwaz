@@ -1,14 +1,16 @@
 
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTransactions } from '@/context/transaction-context';
+import { useSettings } from '@/context/settings-context'; // Import useSettings
 import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Share2, Smartphone, Settings, Home, Phone } from 'lucide-react';
+import { ArrowLeft, Printer, Share2, Smartphone, Settings, Home, Phone, Building, Mail } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import Link from 'next/link';
 
@@ -17,6 +19,7 @@ export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
   const { getTransactionById } = useTransactions();
+  const { settings, isLoadingSettings } = useSettings(); // Get settings
   const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
 
@@ -43,7 +46,7 @@ export default function ReceiptPage() {
   
   const handleShare = async () => {
     if (navigator.share && transaction) {
-      let shareText = `Receipt for Kasir Konter\nTransaction ID: ${transaction.id.substring(0,8)}\nDate: ${new Date(transaction.date).toLocaleString('id-ID')}\n\n`;
+      let shareText = `Receipt for ${settings.storeName}\nTransaction ID: ${transaction.id.substring(0,8)}\nDate: ${new Date(transaction.date).toLocaleString('id-ID')}\n\n`;
       if (transaction.type === 'sale') {
         const saleTx = transaction as SaleTransaction;
         shareText += `Customer: ${saleTx.customerName || 'N/A'}\nItems:\n`;
@@ -80,7 +83,7 @@ export default function ReceiptPage() {
   };
 
 
-  if (transaction === undefined) {
+  if (transaction === undefined || isLoadingSettings) {
     return <div className="flex justify-center items-center h-64">Loading receipt...</div>;
   }
 
@@ -103,15 +106,20 @@ export default function ReceiptPage() {
     <div className="max-w-md mx-auto bg-background p-0 print:p-0">
       <Card className="shadow-lg print:shadow-none print:border-none">
         <CardHeader className="bg-primary text-primary-foreground p-6 print:bg-transparent print:text-black">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-               <Smartphone className="h-8 w-8" />
-               <CardTitle className="text-2xl font-headline">Kasir Konter</CardTitle>
+               <Building className="h-8 w-8" />
+               <CardTitle className="text-2xl font-headline">{settings.storeName}</CardTitle>
             </div>
             <div className="text-right">
                 <p className="text-xs">Receipt</p>
                 <p className="text-xs">ID: {transaction.id.substring(0,8)}</p>
             </div>
+          </div>
+          {settings.storeAddress && <p className="text-xs text-primary-foreground/80 print:text-black/80">{settings.storeAddress}</p>}
+          <div className="flex justify-between text-xs text-primary-foreground/80 print:text-black/80">
+            {settings.storePhone && <span>Tel: {settings.storePhone}</span>}
+            {settings.storeEmail && <span>Email: {settings.storeEmail}</span>}
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
@@ -229,7 +237,7 @@ export default function ReceiptPage() {
             {transaction.type === 'service' && (
                <Button asChild variant="outline" className="w-full sm:w-auto">
                   <Link href={`/admin/service-management/${transaction.id}`} className="flex items-center justify-center">
-                      <Settings className="mr-2 h-4 w-4 shrink-0" /> 
+                      <Settings className="mr-1 h-4 w-4 shrink-0" /> 
                       <span>Manage</span>
                   </Link>
                </Button>

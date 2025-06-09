@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -29,7 +30,7 @@ import {
   ScrollText,
   Lightbulb,
   LogOut,
-  Settings,
+  Settings as SettingsIcon, // Renamed to avoid conflict
   Smartphone,
   ClipboardList,
   ShieldCheck,
@@ -39,7 +40,7 @@ import {
   ListOrdered,
   UserCircle2,
   Archive, 
-  Users2, // Icon for Customers
+  Users2,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import Loading from '@/app/loading'; 
@@ -60,6 +61,7 @@ const adminNavItems = [
  { href: '/admin/manage-customers', label: 'Manage Customers', icon: Users2 },
  { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users },
  { href: '/admin/manage-transactions', label: 'Manage Transactions', icon: ListOrdered },
+ { href: '/admin/settings', label: 'Store Settings', icon: SettingsIcon },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {

@@ -1,4 +1,5 @@
 
+
 export type SaleItem = {
   id: string;
   name: string;
@@ -87,7 +88,7 @@ export type NewUserInput = Omit<User, 'id'>;
 
 // For Reports
 export type MonthlySummary = {
-  month: string; // YYYY-MM
+  month: string; // YYYY-MM or label like "Aug 24"
   sales: number;
   services: number;
   expenses: number;
@@ -125,3 +126,12 @@ export type Customer = {
 
 export type NewCustomerInput = Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdateCustomerInput = Partial<NewCustomerInput>;
+
+// --- Store Settings ---
+export type StoreSettings = {
+  storeName: string;
+  storeAddress?: string;
+  storePhone?: string;
+  storeEmail?: string;
+  // storeLogoUrl?: string; // Future enhancement
+};

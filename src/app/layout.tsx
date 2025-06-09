@@ -1,11 +1,13 @@
 
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
 import { TransactionProvider } from '@/context/transaction-context';
 import { AuthProvider } from '@/context/auth-context';
 import { InventoryProvider } from '@/context/inventory-context';
-import { CustomerProvider } from '@/context/customer-context'; // Import CustomerProvider
+import { CustomerProvider } from '@/context/customer-context';
+import { SettingsProvider } from '@/context/settings-context'; // Import SettingsProvider
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
@@ -27,14 +29,16 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <InventoryProvider>
-            <CustomerProvider> {/* Wrap with CustomerProvider */}
-              <TransactionProvider>
-                <AppLayout>{children}</AppLayout>
-                <Toaster />
-              </TransactionProvider>
-            </CustomerProvider>
-          </InventoryProvider>
+          <SettingsProvider> {/* Wrap with SettingsProvider */}
+            <InventoryProvider>
+              <CustomerProvider>
+                <TransactionProvider>
+                  <AppLayout>{children}</AppLayout>
+                  <Toaster />
+                </TransactionProvider>
+              </CustomerProvider>
+            </InventoryProvider>
+          </SettingsProvider>
         </AuthProvider>
       </body>
     </html>

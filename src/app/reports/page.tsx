@@ -10,8 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, Download, TrendingUp, TrendingDown, DollarSign, Filter } from 'lucide-react';
-import { format, parseISO, getMonth, getYear, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
+import { BarChart3, Download, TrendingUp, TrendingDown, DollarSign, Filter, Calendar as CalendarIcon } from 'lucide-react';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'; // Assuming this will be created or you have one
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
+import { format, parseISO, getMonth, getYear, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, isWithinInterval, addDays } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
 const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -20,51 +24,35 @@ export default function ReportsPage() {
   const { transactions } = useTransactions();
   const [isClient, setIsClient] = useState(false);
 
-  const availableMonths = useMemo(() => {
-    if (transactions.length === 0) {
-      const now = new Date();
-      return [{ value: format(now, 'yyyy-MM'), label: format(now, 'MMMM yyyy', { locale: LocaleID }) }];
-    }
-    const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const oldestDate = parseISO(sortedTransactions[0].date);
-    const newestDate = new Date(); // Use current date as newest for month options
-    
-    const months = eachMonthOfInterval({
-      start: oldestDate,
-      end: newestDate,
-    });
-
-    return months
-      .map(monthStart => ({
-        value: format(monthStart, 'yyyy-MM'),
-        label: format(monthStart, 'MMMM yyyy', { locale: LocaleID }),
-      }))
-      .reverse(); // Newest first
-  }, [transactions]);
-
-  const [selectedMonth, setSelectedMonth] = useState<string>(availableMonths[0]?.value || format(new Date(), 'yyyy-MM'));
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
   const [transactionType, setTransactionType] = useState<TransactionTypeFilter>('all');
 
   useEffect(() => {
     setIsClient(true);
-    // Ensure selectedMonth is updated if availableMonths changes and current selectedMonth is not in new list
-    if (availableMonths.length > 0 && !availableMonths.find(m => m.value === selectedMonth)) {
-      setSelectedMonth(availableMonths[0].value);
-    }
-  }, [availableMonths, selectedMonth]);
+  }, []);
 
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
       const txDate = parseISO(tx.date);
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const isSameMonth = getYear(txDate) === year && (getMonth(txDate) + 1) === month;
-      const isCorrectType = transactionType === 'all' || tx.type === transactionType;
-      return isSameMonth && isCorrectType;
-    });
-  }, [transactions, selectedMonth, transactionType]);
+      let isDateInRange = true;
+      if (dateRange?.from && dateRange?.to) {
+        isDateInRange = isWithinInterval(txDate, { start: dateRange.from, end: addDays(dateRange.to, 1) }); // Add 1 day to 'to' to make it inclusive
+      } else if (dateRange?.from) {
+        isDateInRange = txDate >= dateRange.from;
+      } else if (dateRange?.to) {
+        isDateInRange = txDate <= addDays(dateRange.to, 1);
+      }
 
-  const monthlyRecap = useMemo(() => {
+      const isCorrectType = transactionType === 'all' || tx.type === transactionType;
+      return isDateInRange && isCorrectType;
+    });
+  }, [transactions, dateRange, transactionType]);
+
+  const rangeRecap = useMemo(() => {
     let totalSales = 0;
     let totalServices = 0;
     let totalExpenses = 0;
@@ -80,7 +68,7 @@ export default function ReportsPage() {
   }, [filteredTransactions]);
 
   const monthlyChartData: MonthlySummary[] = useMemo(() => {
-    const lastNMonths = 6; // Show data for the last 6 months including current
+    const lastNMonths = 6; 
     const end = new Date();
     const start = subMonths(end, lastNMonths -1);
     
@@ -102,7 +90,7 @@ export default function ReportsPage() {
             }
         });
         return { month: monthLabel, sales, services, expenses, profit: sales + services - expenses };
-    }).reverse(); // Newest first for chart display
+    }).reverse();
   }, [transactions]);
   
   const expenseBreakdownData = useMemo(() => {
@@ -135,6 +123,19 @@ export default function ReportsPage() {
     return 0;
   };
 
+  const selectedDateRangeLabel = useMemo(() => {
+    if (dateRange?.from && dateRange?.to) {
+      if (format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd')) {
+        return format(dateRange.from, 'dd MMMM yyyy', { locale: LocaleID });
+      }
+      return `${format(dateRange.from, 'dd MMM yyyy', { locale: LocaleID })} - ${format(dateRange.to, 'dd MMM yyyy', { locale: LocaleID })}`;
+    }
+    if (dateRange?.from) return `From ${format(dateRange.from, 'dd MMMM yyyy', { locale: LocaleID })}`;
+    if (dateRange?.to) return `Up to ${format(dateRange.to, 'dd MMMM yyyy', { locale: LocaleID })}`;
+    return 'Select Date Range';
+  }, [dateRange]);
+
+
   if (!isClient) {
     return (
         <div className="flex flex-col gap-6">
@@ -159,18 +160,28 @@ export default function ReportsPage() {
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 items-center border p-4 rounded-lg bg-secondary/30">
             <Filter className="h-5 w-5 text-muted-foreground hidden sm:block"/>
-            <div className="w-full sm:w-auto">
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Pilih Bulan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.map(month => (
-                    <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={"outline"}
+                  className="w-full sm:w-[260px] justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDateRangeLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
             <div className="w-full sm:w-auto">
               <Select value={transactionType} onValueChange={(value) => setTransactionType(value as TransactionTypeFilter)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
@@ -184,12 +195,9 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
-            {/* <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" /> Unduh Laporan (CSV)
-            </Button> */}
           </div>
 
-          <CardTitle className="text-xl font-headline pt-4">Rekap Bulan: {format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy', { locale: LocaleID })}</CardTitle>
+          <CardTitle className="text-xl font-headline pt-4">Rekap Periode: {selectedDateRangeLabel}</CardTitle>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -197,7 +205,7 @@ export default function ReportsPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(monthlyRecap.totalRevenue)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(rangeRecap.totalRevenue)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -206,7 +214,7 @@ export default function ReportsPage() {
                 <TrendingUp className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(monthlyRecap.totalSales)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(rangeRecap.totalSales)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -215,7 +223,7 @@ export default function ReportsPage() {
                 <TrendingUp className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(monthlyRecap.totalServices)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(rangeRecap.totalServices)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -224,7 +232,7 @@ export default function ReportsPage() {
                 <TrendingDown className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(monthlyRecap.totalExpenses)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(rangeRecap.totalExpenses)}</div>
               </CardContent>
             </Card>
              <Card className="md:col-span-2 lg:col-span-4">
@@ -233,7 +241,7 @@ export default function ReportsPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${monthlyRecap.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(monthlyRecap.profit)}</div>
+                <div className={`text-2xl font-bold ${rangeRecap.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(rangeRecap.profit)}</div>
               </CardContent>
             </Card>
           </div>
@@ -246,7 +254,7 @@ export default function ReportsPage() {
         </CardHeader>
         <CardContent className="h-[350px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyChartData.slice().reverse()}> {/* reverse for chronological order on chart */}
+            <BarChart data={monthlyChartData.slice().reverse()}> 
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis tickFormatter={(value) => formatCurrency(value)} />
@@ -263,7 +271,7 @@ export default function ReportsPage() {
       {transactionType === 'all' || transactionType === 'expense' ? (
         <Card>
             <CardHeader>
-            <CardTitle className="text-xl font-headline">Rincian Pengeluaran Bulan: {format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy', { locale: LocaleID })}</CardTitle>
+            <CardTitle className="text-xl font-headline">Rincian Pengeluaran Periode: {selectedDateRangeLabel}</CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
             {expenseBreakdownData.length > 0 ? (
@@ -288,7 +296,7 @@ export default function ReportsPage() {
                 </PieChart>
                 </ResponsiveContainer>
             ) : (
-                <p className="text-muted-foreground text-center py-8">Tidak ada data pengeluaran untuk bulan ini.</p>
+                <p className="text-muted-foreground text-center py-8">Tidak ada data pengeluaran untuk periode ini.</p>
             )}
             </CardContent>
         </Card>
@@ -297,7 +305,7 @@ export default function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl font-headline">Detail Transaksi: {format(parseISO(`${selectedMonth}-01`), 'MMMM yyyy', { locale: LocaleID })} {transactionType !== 'all' ? `(${transactionType})` : ''}</CardTitle>
+          <CardTitle className="text-xl font-headline">Detail Transaksi: {selectedDateRangeLabel} {transactionType !== 'all' ? `(${transactionType})` : ''}</CardTitle>
         </CardHeader>
         <CardContent>
           {filteredTransactions.length === 0 ? (
