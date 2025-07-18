@@ -1,13 +1,12 @@
-
-"use client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { ShoppingCart, Wrench, BadgeDollarSign, ScrollText, Lightbulb, ArrowRight } from "lucide-react";
-import { useTransactions } from "@/context/transaction-context";
-import type { Transaction } from "@/types";
-import { useEffect, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+'use client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { ShoppingCart, Wrench, BadgeDollarSign, ScrollText, Lightbulb, ArrowRight } from 'lucide-react';
+import { useTransactions } from '@/context/transaction-context';
+import type { Transaction } from '@/types';
+import { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
   const { transactions } = useTransactions();
@@ -27,7 +26,7 @@ export default function DashboardPage() {
     let sales = 0;
     let services = 0;
     let expenses = 0;
-    transactions.forEach(tx => {
+    transactions.forEach((tx) => {
       if (tx.type === 'sale') sales += tx.grandTotal;
       if (tx.type === 'service') services += tx.serviceFee;
       if (tx.type === 'expense') expenses += tx.amount;
@@ -42,7 +41,7 @@ export default function DashboardPage() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
-  }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,23 +108,31 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <Button variant="outline" asChild className="w-full">
-              <Link href="/sales"><ShoppingCart className="mr-2 h-4 w-4" /> Record Sale</Link>
+              <Link href="/sales">
+                <ShoppingCart className="mr-2 h-4 w-4" /> Record Sale
+              </Link>
             </Button>
             <Button variant="outline" asChild className="w-full">
-              <Link href="/services"><Wrench className="mr-2 h-4 w-4" /> Record Service</Link>
+              <Link href="/services">
+                <Wrench className="mr-2 h-4 w-4" /> Record Service
+              </Link>
             </Button>
             <Button variant="outline" asChild className="w-full">
-              <Link href="/expenses"><BadgeDollarSign className="mr-2 h-4 w-4" /> Record Expense</Link>
+              <Link href="/expenses">
+                <BadgeDollarSign className="mr-2 h-4 w-4" /> Record Expense
+              </Link>
             </Button>
             <Button variant="outline" asChild className="w-full">
-              <Link href="/recommendations"><Lightbulb className="mr-2 h-4 w-4" /> Price AI</Link>
+              <Link href="/recommendations">
+                <Lightbulb className="mr-2 h-4 w-4" /> Price AI
+              </Link>
             </Button>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Recent Activity</CardTitle>
-             <CardDescription>Showing last 5 transactions.</CardDescription>
+            <CardDescription>Showing last 5 transactions.</CardDescription>
           </CardHeader>
           <CardContent>
             {!isClient ? (
@@ -142,13 +149,11 @@ export default function DashboardPage() {
                   <li key={tx.id} className="flex items-center justify-between text-sm p-2 rounded-md hover:bg-secondary/50">
                     <div>
                       <span className="font-medium">
-                        {tx.type === 'sale' && `Sale: ${tx.items.map(i => i.name).join(', ')}`}
+                        {tx.type === 'sale' && `Sale: ${tx.items.map((i) => i.name).join(', ')}`}
                         {tx.type === 'service' && `Service: ${tx.serviceName}`}
                         {tx.type === 'expense' && `Expense: ${tx.description}`}
                       </span>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </div>
                     <span className={`font-semibold ${tx.type === 'expense' ? 'text-destructive' : 'text-green-600'}`}>
                       {tx.type === 'sale' && `+${formatCurrency(tx.grandTotal)}`}
@@ -159,11 +164,11 @@ export default function DashboardPage() {
                 ))}
               </ul>
             )}
-             {isClient && transactions.length > 5 && (
-                <Button variant="link" asChild className="mt-2 p-0 h-auto">
-                    <Link href="/transactions">View all transactions</Link>
-                </Button>
-             )}
+            {isClient && transactions.length > 5 && (
+              <Button variant="link" asChild className="mt-2 p-0 h-auto">
+                <Link href="/transactions">View all transactions</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

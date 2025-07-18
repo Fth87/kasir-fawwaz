@@ -1,11 +1,8 @@
-
-
-"use client";
+'use client';
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import React, { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -19,7 +16,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
   SidebarGroup,
-  SidebarGroupLabel
+  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,16 +31,15 @@ import {
   Smartphone,
   ClipboardList,
   ShieldCheck,
-  Loader2,
   Users,
   BarChart3,
   ListOrdered,
   UserCircle2,
-  Archive, 
+  Archive,
   Users2,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import Loading from '@/app/loading'; 
+import Loading from '@/app/loading';
 
 const mainNavItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -56,48 +52,27 @@ const mainNavItems = [
 ];
 
 const adminNavItems = [
- { href: '/admin/manage-services', label: 'Manage Services', icon: ClipboardList },
- { href: '/admin/manage-inventory', label: 'Manage Inventory', icon: Archive },
- { href: '/admin/manage-customers', label: 'Manage Customers', icon: Users2 },
- { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users },
- { href: '/admin/manage-transactions', label: 'Manage Transactions', icon: ListOrdered },
- { href: '/admin/settings', label: 'Store Settings', icon: SettingsIcon },
+  { href: '/admin/manage-services', label: 'Manage Services', icon: ClipboardList },
+  { href: '/admin/manage-inventory', label: 'Manage Inventory', icon: Archive },
+  { href: '/admin/manage-customers', label: 'Manage Customers', icon: Users2 },
+  { href: '/admin/manage-accounts', label: 'Manage Accounts', icon: Users },
+  { href: '/admin/manage-transactions', label: 'Manage Transactions', icon: ListOrdered },
+  { href: '/admin/settings', label: 'Store Settings', icon: SettingsIcon },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { currentUser, isLoadingAuth, logout } = useAuth();
-
-  useEffect(() => {
-    if (isLoadingAuth) return; 
-
-    if (!currentUser && pathname !== '/login') {
-      router.push('/login');
-    } else if (currentUser && pathname === '/login') {
-      router.push('/'); 
-    }
-  }, [currentUser, isLoadingAuth, pathname, router]);
+  const { user, isLoading, logout } = useAuth();
+  if (isLoading) {
+    return <Loading />;
+  }
 
   if (pathname === '/login') {
-    if (isLoadingAuth || !currentUser) { 
+    if (!user) {
       return <>{children}</>;
     }
     return <Loading />;
   }
-
-  if (isLoadingAuth) {
-    return <Loading />;
-  }
-
-  if (!currentUser && pathname !== '/login') {
-    return <Loading />;
-  }
-  
-  if (!currentUser) {
-      return <Loading />;
-  }
-
 
   return (
     <SidebarProvider defaultOpen>
@@ -117,7 +92,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <SidebarMenuItem key={item.href}>
                 <Button
                   asChild
-                  variant={(pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))) ? 'secondary' : 'ghost'}
+                  variant={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
                   className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
                 >
                   <Link href={item.href} className="flex items-center gap-3">
@@ -128,74 +103,67 @@ export function AppLayout({ children }: { children: ReactNode }) {
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
-          
-          {currentUser?.role === 'admin' && (
+
+          {user?.role === 'admin' && (
             <>
               <SidebarSeparator className="my-2" />
               <SidebarGroup>
                 <SidebarGroupLabel className="flex items-center">
-                    <ShieldCheck className="mr-2 h-4 w-4"/>
-                    <span className="group-data-[collapsible=icon]:hidden">Admin Area</span>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  <span className="group-data-[collapsible=icon]:hidden">Admin Area</span>
                 </SidebarGroupLabel>
                 <SidebarMenu>
-                    {adminNavItems.map((item) => (
+                  {adminNavItems.map((item) => (
                     <SidebarMenuItem key={item.href}>
-                        <Button
+                      <Button
                         asChild
-                        variant={(pathname === item.href || pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
+                        variant={pathname === item.href || pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
                         className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-                        >
+                      >
                         <Link href={item.href} className="flex items-center gap-3">
-                            <item.icon className="h-5 w-5 shrink-0" />
-                            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                          <item.icon className="h-5 w-5 shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                         </Link>
-                        </Button>
+                      </Button>
                     </SidebarMenuItem>
-                    ))}
+                  ))}
                 </SidebarMenu>
               </SidebarGroup>
             </>
           )}
-
         </SidebarContent>
         <SidebarFooter className="p-2 mt-auto border-t border-sidebar-border">
-           {currentUser && (
+          {user && (
             <div className="px-2 py-3 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center gap-2">
                 <UserCircle2 className="h-6 w-6 text-sidebar-foreground" />
                 <div>
-                  <p className="text-sm font-medium text-sidebar-foreground">{currentUser.username}</p>
-                  <p className="text-xs text-sidebar-foreground/70 capitalize">{currentUser.role}</p>
+                  <p className="text-sm font-medium text-sidebar-foreground">{user.email}</p>
+                  <p className="text-xs text-sidebar-foreground/70 capitalize">{user.role}</p>
                 </div>
               </div>
             </div>
-           )}
-           <SidebarSeparator className="my-1 group-data-[collapsible=icon]:hidden" />
-           <SidebarMenu>
-             <SidebarMenuItem>
-               <Button
-                 variant="ghost"
-                 className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
-                 onClick={logout}
-               >
-                 <LogOut className="h-5 w-5 shrink-0" />
-                 <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-               </Button>
-             </SidebarMenuItem>
-           </SidebarMenu>
+          )}
+          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:hidden" />
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2" onClick={logout}>
+                <LogOut className="h-5 w-5 shrink-0" />
+                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+              </Button>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-4 md:hidden">
-           <SidebarTrigger variant="ghost" size="icon" className="shrink-0" />
-           <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
-             <Smartphone className="h-6 w-6 text-primary" />
-             Kasir Konter
-           </Link>
+          <SidebarTrigger variant="ghost" size="icon" className="shrink-0" />
+          <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
+            <Smartphone className="h-6 w-6 text-primary" />
+            Kasir Konter
+          </Link>
         </header>
-        <main className="flex-1 p-4 sm:px-6 sm:py-0 md:p-6">
-          {children}
-        </main>
+        <main className="flex-1 p-4 sm:px-6 sm:py-0 md:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

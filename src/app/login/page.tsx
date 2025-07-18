@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -9,47 +8,45 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { LogIn, Loader2, Smartphone } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
+// Skema validasi diubah dari username ke email
 const loginFormSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email('Format email tidak valid'),
+  password: z.string().min(1, 'Password tidak boleh kosong'),
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const { login, currentUser, isLoadingAuth } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      username: "",
-      password: "",
+      email: '',
+      password: '',
     },
   });
 
-  useEffect(() => {
-    if (!isLoadingAuth && currentUser) {
-      router.replace('/'); // Redirect to dashboard if already logged in
-    }
-  }, [currentUser, isLoadingAuth, router]);
-
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
-    const success = await login(data.username, data.password);
+    const success = await login(data.email, data.password);
     if (success) {
-      router.replace('/'); // Redirect to dashboard on successful login
+      router.replace('/');
+      router.refresh();
+    } else {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
-  if (isLoadingAuth || currentUser) {
-    // Show a loader or nothing while checking auth status or if already logged in (and redirecting)
+
+
+  if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -65,19 +62,19 @@ export default function LoginPage() {
             <Smartphone className="h-10 w-10 text-primary" />
           </div>
           <CardTitle className="text-2xl font-headline">Kasir Konter Login</CardTitle>
-          <CardDescription>Enter your credentials to access the system.</CardDescription>
+          <CardDescription>Masukkan email dan password untuk masuk.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., admin" {...field} />
+                      <Input type="email" placeholder="contoh@email.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -102,7 +99,7 @@ export default function LoginPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
+                    Memproses...
                   </>
                 ) : (
                   <>
@@ -114,9 +111,7 @@ export default function LoginPage() {
           </form>
         </Form>
       </Card>
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        Demo Admin: admin/adminpassword | Demo Kasir: kasir/kasirpassword
-      </p>
+      <p className="mt-4 text-center text-xs text-muted-foreground">Gunakan akun yang telah terdaftar di Supabase.</p>
     </div>
   );
 }

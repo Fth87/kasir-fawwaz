@@ -29,7 +29,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <SettingsProvider> {/* Wrap with SettingsProvider */}
+          <SettingsProvider> 
             <InventoryProvider>
               <CustomerProvider>
                 <TransactionProvider>
