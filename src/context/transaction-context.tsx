@@ -10,7 +10,7 @@ import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 type AddSaleTransactionInput = {
   type: 'sale';
   customerName: string;
-  customerId?: string; 
+  customerId?: string;
   paymentMethod: 'cash' | 'transfer' | 'qris';
   items: Omit<SaleTransaction['items'][0], 'id' | 'total'>[];
 };
@@ -22,6 +22,7 @@ type AddServiceTransactionInput = {
   device: string;
   issueDescription: string;
   price: number;
+  customerId?: string;
 };
 
 type AddExpenseTransactionInput = {
@@ -41,8 +42,8 @@ interface TransactionContextType {
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
   getTransactionsByCustomerId: (customerId: string) => Transaction[];
-  getCustomerTransactions: (customerId: string) => { 
-    transactions: Transaction[]; 
+  getCustomerTransactions: (customerId: string) => {
+    transactions: Transaction[];
     isLoading: boolean;
   };
 }
@@ -102,6 +103,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         transactionToInsert = {
           type: 'service',
           customer_name: serviceData.customerName,
+          customer_id: serviceData.customerId,
           total_amount: serviceData.price,
           details: {
             serviceName: serviceData.serviceName,
@@ -247,17 +249,22 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     [supabase, toast, fetchTransactions, transactions]
   );
 
-    const getTransactionsByCustomerId = useCallback((customerId: string): Transaction[] => {
-    if (!customerId) return [];
-    return transactions.filter(tx => {
-      // Mencocokkan berdasarkan properti customerId yang mungkin ada
-      if ('customerId' in tx && tx.customerId === customerId) {
-        return true;
-      }
-      return false;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions]);
- const getCustomerTransactions = (customerId: string) => {
+  const getTransactionsByCustomerId = useCallback(
+    (customerId: string): Transaction[] => {
+      if (!customerId) return [];
+      return transactions
+        .filter((tx) => {
+          // Mencocokkan berdasarkan properti customerId yang mungkin ada
+          if ('customerId' in tx && tx.customerId === customerId) {
+            return true;
+          }
+          return false;
+        })
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    [transactions]
+  );
+  const getCustomerTransactions = (customerId: string) => {
     const [customerTransactions, setCustomerTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -276,7 +283,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          toast({ title: "Error", description: "Gagal memuat riwayat transaksi pelanggan.", variant: "destructive" });
+          toast({ title: 'Error', description: 'Gagal memuat riwayat transaksi pelanggan.', variant: 'destructive' });
           setCustomerTransactions([]);
         } else {
           const formattedTransactions = data.map(mapDbRowToTransaction).filter(Boolean) as Transaction[];
@@ -290,7 +297,11 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
 
     return { transactions: customerTransactions, isLoading };
   };
-  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, getCustomerTransactions }}>{children}</TransactionContext.Provider>;
+  return (
+    <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, getCustomerTransactions }}>
+      {children}
+    </TransactionContext.Provider>
+  );
 };
 
 export const useTransactions = () => {
