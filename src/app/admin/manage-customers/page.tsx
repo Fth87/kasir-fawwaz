@@ -1,13 +1,12 @@
+'use client';
 
-"use client";
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useCustomers } from '@/context/customer-context';
-import type { Customer, NewCustomerInput } from '@/types';
+import type { Customer } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -16,38 +15,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useToast } from '@/hooks/use-toast';
-import { Users2, PlusCircle, Edit3, Trash2, Loader2, ShieldAlert, Eye } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Users2, PlusCircle, Edit3, Trash2, Loader2, ShieldAlert, Eye, EyeIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
+// Skema validasi Zod (tidak ada perubahan signifikan)
 const customerFormSchema = z.object({
-  name: z.string().min(1, "Customer name is required"),
-  phone: z.string().optional().refine(val => !val || /^[0-9\s+-]+$/.test(val) || val === "", {
-    message: "Invalid phone number format",
-  }),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  name: z.string().min(1, 'Nama pelanggan harus diisi'),
+  phone: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -55,84 +32,83 @@ const customerFormSchema = z.object({
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 export default function ManageCustomersPage() {
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
-  const { currentUser, isLoadingAuth } = useAuth();
+  // Ambil isLoading dari context pelanggan dan auth
+  const { customers, isLoading: isLoadingCustomers, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isPending, startTransition] = useTransition(); // Hook untuk loading aksi
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
-    defaultValues: {
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      notes: "",
-    },
+    defaultValues: { name: '', phone: '', address: '', notes: '' },
   });
 
+  // Proteksi rute (sudah benar)
   useEffect(() => {
     if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
       router.replace('/');
     }
   }, [currentUser, isLoadingAuth, router]);
 
+  // Mengisi form saat dialog edit dibuka
   useEffect(() => {
-    if (editingCustomer) {
+    if (isDialogOpen && editingCustomer) {
       form.reset({
         name: editingCustomer.name,
-        phone: editingCustomer.phone || "",
-        email: editingCustomer.email || "",
-        address: editingCustomer.address || "",
-        notes: editingCustomer.notes || "",
+        phone: editingCustomer.phone || '',
+        address: editingCustomer.address || '',
+        notes: editingCustomer.notes || '',
       });
     } else {
-      form.reset(); // Reset to default when adding new or closing dialog
+      form.reset({ name: '', phone: '', address: '', notes: '' });
     }
-  }, [editingCustomer, form, isDialogOpen]);
-
+  }, [editingCustomer, isDialogOpen, form]);
 
   const handleOpenDialog = (customer?: Customer) => {
     setEditingCustomer(customer || null);
     setIsDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setEditingCustomer(null);
-    setIsDialogOpen(false);
-    form.reset(); 
+  const handleCloseDialog = () => setIsDialogOpen(false);
+
+  // Fungsi onSubmit yang sudah async
+  const onSubmit = (data: CustomerFormValues) => {
+    startTransition(async () => {
+      const success = editingCustomer ? await updateCustomer(editingCustomer.id, data) : await addCustomer(data);
+
+      if (success) {
+        handleCloseDialog();
+      }
+      // Toast sudah ditangani di dalam context
+    });
   };
 
-  const onSubmit = async (data: CustomerFormValues) => {
-    setIsSubmitting(true);
-    let success;
-    if (editingCustomer) {
-      success = updateCustomer(editingCustomer.id, data);
-    } else {
-      success = addCustomer(data);
-    }
-
-    if (success) {
-      handleCloseDialog();
-    }
-    setIsSubmitting(false);
-  };
-
+  // Fungsi handleDelete yang menggunakan useTransition
   const handleDelete = (customerId: string) => {
-    deleteCustomer(customerId);
+    startTransition(async () => {
+      await deleteCustomer(customerId);
+    });
   };
 
-  if (isLoadingAuth || !currentUser || currentUser.role !== 'admin') {
+  // Gabungkan semua state loading
+  const isLoading = isLoadingAuth || isLoadingCustomers;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!currentUser || currentUser.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        {isLoadingAuth ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ShieldAlert className="h-12 w-12 text-destructive" />}
-        <p className="text-muted-foreground">
-          {isLoadingAuth ? 'Loading authentication...' : 'Access Denied. Admins only.'}
-        </p>
+        <ShieldAlert className="h-12 w-12 text-destructive" />
+        <p className="text-muted-foreground">Akses Ditolak. Hanya untuk Admin.</p>
       </div>
     );
   }
@@ -143,65 +119,58 @@ export default function ManageCustomersPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-2xl font-headline flex items-center">
-              <Users2 className="mr-3 h-7 w-7" /> Manage Customers
+              <Users2 className="mr-3 h-7 w-7" /> Kelola Pelanggan
             </CardTitle>
-            <CardDescription>View, add, edit, and delete customer profiles.</CardDescription>
+            <CardDescription>Lihat, tambah, ubah, dan hapus profil pelanggan.</CardDescription>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <PlusCircle className="mr-2 h-5 w-5" /> Add New Customer
+          <Button onClick={() => handleOpenDialog()}>
+            <PlusCircle className="mr-2 h-5 w-5" /> Tambah Pelanggan
           </Button>
         </CardHeader>
         <CardContent>
           {customers.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No customers found. Add customers to get started.</p>
+            <p className="text-muted-foreground text-center py-8">Belum ada pelanggan. Tambah pelanggan baru untuk memulai.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Telepon</TableHead>
+                  <TableHead>Bergabung</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {customers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.phone || 'N/A'}</TableCell>
-                    <TableCell>{customer.email || 'N/A'}</TableCell>
-                    <TableCell>
-                      {format(parseISO(customer.createdAt), 'dd MMM yyyy', { locale: LocaleID })}
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell>{customer.phone || '-'}</TableCell>
+                    <TableCell>{format(parseISO(customer.createdAt), 'dd MMM yyyy', { locale: LocaleID })}</TableCell>
+                    <TableCell className="text-right space-x-2 space-y-2">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenDialog(customer)}>
+                        <Edit3 className="mr-1 h-4 w-4" /> Ubah
+                      </Button>
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/admin/manage-customers/${customer.id}`}>
-                          <Eye className="mr-1 h-4 w-4" /> View
+                          <Eye className="mr-1 h-4 w-4" /> Lihat
                         </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenDialog(customer)}>
-                        <Edit3 className="mr-1 h-4 w-4" /> Edit
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            <Trash2 className="mr-1 h-4 w-4" /> Delete
+                          <Button variant="destructive" size="sm" disabled={isPending}>
+                            <Trash2 className="mr-1 h-4 w-4" /> Hapus
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete the customer: <strong>{customer.name}</strong>.
-                              Associated transactions will NOT be deleted but will lose direct link if any.
+                              Aksi ini akan menghapus pelanggan <strong>{customer.name}</strong> secara permanen.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(customer.id)}>
-                              Delete
-                            </AlertDialogAction>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(customer.id)}>Hapus</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -218,23 +187,21 @@ export default function ManageCustomersPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center">
-                {editingCustomer ? <Edit3 className="mr-2 h-5 w-5"/> : <PlusCircle className="mr-2 h-5 w-5"/>}
-                {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
+              {editingCustomer ? <Edit3 className="mr-2 h-5 w-5" /> : <PlusCircle className="mr-2 h-5 w-5" />}
+              {editingCustomer ? 'Ubah Data Pelanggan' : 'Tambah Pelanggan Baru'}
             </DialogTitle>
-            <DialogDescription>
-              {editingCustomer ? `Update details for ${editingCustomer.name}.` : 'Fill in the details for the new customer.'}
-            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              {/* FormField untuk 'name', 'phone', 'email', 'address', 'notes' */}
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer Name</FormLabel>
+                    <FormLabel>Nama Pelanggan</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., John Doe" {...field} />
+                      <Input placeholder="" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -245,22 +212,9 @@ export default function ManageCustomersPage() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number (Optional)</FormLabel>
+                    <FormLabel>No. Telepon (Opsional)</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="e.g., 081234567890" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email (Optional)</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="e.g., john.doe@example.com" {...field} />
+                      <Input type="tel" placeholder="cth: 081234567890" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -271,9 +225,9 @@ export default function ManageCustomersPage() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address (Optional)</FormLabel>
+                    <FormLabel>Alamat (Opsional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Enter customer address" {...field} />
+                      <Textarea placeholder="Alamat pelanggan" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -284,19 +238,21 @@ export default function ManageCustomersPage() {
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormLabel>Catatan (Opsional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Any relevant notes about the customer" {...field} />
+                      <Textarea placeholder="Catatan untuk pelanggan" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              {/* ... tambahkan field lain jika perlu ... */}
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>Cancel</Button>
-                <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (editingCustomer ? <Edit3 className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />)}
-                  {editingCustomer ? 'Save Changes' : 'Add Customer'}
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : editingCustomer ? 'Simpan Perubahan' : 'Tambah Pelanggan'}
                 </Button>
               </DialogFooter>
             </form>

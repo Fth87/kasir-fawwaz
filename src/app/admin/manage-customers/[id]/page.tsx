@@ -1,106 +1,47 @@
-
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React from 'react';
 import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
 import { useCustomers } from '@/context/customer-context';
 import { useTransactions } from '@/context/transaction-context';
-import type { Customer, Transaction, SaleTransaction, ServiceTransaction } from '@/types';
-import { useAuth } from '@/context/auth-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import type { Customer, Transaction } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, UserCircle, Phone, Mail, MapPin, FileText, ShoppingBag, Wrench, Loader2, ShieldAlert, Edit3, Eye as ViewIcon } from 'lucide-react';
+import { ArrowLeft, UserCircle, Phone, Mail, MapPin, FileText, ShoppingBag, Wrench, Loader2, ViewIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
+
+// Helper Function
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+};
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { getCustomerById } = useCustomers();
-  const { transactions: allTransactions } = useTransactions();
-  const { currentUser, isLoadingAuth } = useAuth();
-
-  const [customer, setCustomer] = useState<Customer | null | undefined>(undefined);
-
-  const customerId = params.id as string;
-
-  useEffect(() => {
-    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
-      router.replace('/');
-    }
-  }, [currentUser, isLoadingAuth, router]);
-
-  useEffect(() => {
-    if (customerId) {
-      const foundCustomer = getCustomerById(customerId);
-      setCustomer(foundCustomer);
-    }
-  }, [customerId, getCustomerById]);
-
-  const customerTransactions = useMemo(() => {
-    if (!customer) return [];
-    return allTransactions.filter(tx => {
-      if (tx.type === 'sale') {
-        return tx.customerName?.toLowerCase() === customer.name.toLowerCase() || tx.customerId === customer.id;
-      }
-      if (tx.type === 'service') {
-        const serviceTx = tx as ServiceTransaction;
-        const nameMatch = serviceTx.customerName?.toLowerCase() === customer.name.toLowerCase();
-        const phoneMatch = customer.phone && serviceTx.customerPhone === customer.phone;
-        return serviceTx.customerId === customer.id || (nameMatch && (phoneMatch || !customer.phone)); // Match if ID or Name and Phone (if customer has phone)
-      }
-      return false;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [customer, allTransactions]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-  };
-
-  const getTransactionSummary = (tx: Transaction) => {
-    if (tx.type === 'sale') return `Sale: ${tx.items.map(i => i.name).join(', ')}`;
-    if (tx.type === 'service') return `Service: ${tx.serviceName}`;
-    if (tx.type === 'expense') return `Expense: ${tx.description}`; // Should not appear here
-    return 'Unknown';
-  };
+  const { getCustomerById, isLoading: isLoadingCustomers } = useCustomers();
+  // Ambil fungsi baru dan isLoading dari context
+  const { getTransactionsByCustomerId, isLoading: isLoadingTransactions } = useTransactions();
   
-  const getTransactionAmount = (tx: Transaction) => {
-    if (tx.type === 'sale') return tx.grandTotal;
-    if (tx.type === 'service') return tx.serviceFee;
-    return 0;
-  };
+  const customerId = params.id as string;
+  const customer = getCustomerById(customerId);
+  const customerTransactions = getTransactionsByCustomerId(customerId);
 
+  const isLoading = isLoadingCustomers || isLoadingTransactions;
 
-  if (isLoadingAuth || customer === undefined) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground">
-          {isLoadingAuth ? 'Loading authentication...' : 'Loading customer details...'}
-        </p>
-      </div>
-    );
-  }
-
-  if (!currentUser || currentUser.role !== 'admin') {
-     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <p className="text-muted-foreground">Access Denied. Admins only.</p>
-      </div>
-    );
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   if (!customer) {
     return (
       <div className="text-center py-10">
-        <h2 className="text-2xl font-semibold mb-4">Customer Not Found</h2>
+        <h2 className="text-2xl font-semibold mb-4">Pelanggan Tidak Ditemukan</h2>
         <Button onClick={() => router.push('/admin/manage-customers')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Customer List
+          <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Daftar Pelanggan
         </Button>
       </div>
     );
@@ -108,121 +49,110 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <UserCircle className="h-10 w-10 text-primary" />
-              <div>
-                <CardTitle className="text-3xl font-headline">{customer.name}</CardTitle>
-                <CardDescription>Customer since {format(parseISO(customer.createdAt), 'dd MMMM yyyy', { locale: LocaleID })}</CardDescription>
-              </div>
-            </div>
-            <Button variant="outline" onClick={() => router.push('/admin/manage-customers')}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {customer.phone && (
-              <div className="flex items-start gap-3">
-                <Phone className="h-5 w-5 text-muted-foreground mt-1" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{customer.phone}</p>
-                </div>
-              </div>
-            )}
-            {customer.email && (
-              <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-muted-foreground mt-1" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{customer.email}</p>
-                </div>
-              </div>
-            )}
-            {customer.address && (
-              <div className="flex items-start gap-3 md:col-span-2">
-                <MapPin className="h-5 w-5 text-muted-foreground mt-1" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium whitespace-pre-wrap">{customer.address}</p>
-                </div>
-              </div>
-            )}
-            {customer.notes && (
-              <div className="flex items-start gap-3 md:col-span-2">
-                <FileText className="h-5 w-5 text-muted-foreground mt-1" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Notes</p>
-                  <p className="font-medium whitespace-pre-wrap">{customer.notes}</p>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Last updated: {format(parseISO(customer.updatedAt), 'dd MMM yyyy, HH:mm', { locale: LocaleID })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-headline">Transaction History</CardTitle>
-          <CardDescription>Sales and services associated with {customer.name}.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {customerTransactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No transactions found for this customer.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Description/ID</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customerTransactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy HH:mm', { locale: LocaleID })}</TableCell>
-                    <TableCell>
-                      <Badge variant={tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">
-                        {tx.type === 'sale' ? <ShoppingBag className="mr-1 h-3 w-3"/> : <Wrench className="mr-1 h-3 w-3"/>}
-                        {tx.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {getTransactionSummary(tx)}
-                      <p className="text-xs text-muted-foreground">ID: {tx.id.substring(0,8)}</p>
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-green-600">
-                      +{formatCurrency(getTransactionAmount(tx))}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/transactions/${tx.id}`}>
-                          <ViewIcon className="mr-1 h-4 w-4" /> View
-                        </Link>
-                      </Button>
-                       <Button asChild variant="outline" size="sm" className="ml-2">
-                        <Link href={`/admin/edit-transaction/${tx.id}`}>
-                          <Edit3 className="mr-1 h-4 w-4" /> Edit
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <CustomerInfoCard customer={customer} />
+      <TransactionHistoryCard transactions={customerTransactions} customerName={customer.name} />
     </div>
+  );
+}
+
+// Sub-komponen untuk menampilkan informasi pelanggan
+function CustomerInfoCard({ customer }: { customer: Customer }) {
+  const router = useRouter();
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <UserCircle className="h-10 w-10 text-primary" />
+            <div>
+              <CardTitle className="text-3xl font-headline">{customer.name}</CardTitle>
+              <CardDescription>Pelanggan sejak {format(parseISO(customer.createdAt), 'dd MMMM yyyy', { locale: LocaleID })}</CardDescription>
+            </div>
+          </div>
+          <Button variant="outline" onClick={() => router.push('/admin/manage-customers')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {customer.phone && <InfoItem icon={Phone} label="Telepon" value={customer.phone} />}
+          {customer.address && <InfoItem icon={MapPin} label="Alamat" value={customer.address} className="md:col-span-2" />}
+          {customer.notes && <InfoItem icon={FileText} label="Catatan" value={customer.notes} className="md:col-span-2" />}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Sub-komponen untuk item informasi
+function InfoItem({ icon: Icon, label, value, className = "" }: { icon: React.ElementType, label: string, value: string, className?: string }) {
+    return (
+        <div className={`flex items-start gap-3 ${className}`}>
+            <Icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+            <div>
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="font-medium whitespace-pre-wrap">{value}</p>
+            </div>
+        </div>
+    );
+}
+
+// Sub-komponen untuk riwayat transaksi
+function TransactionHistoryCard({ transactions, customerName }: { transactions: Transaction[], customerName: string }) {
+  const getTransactionSummary = (tx: Transaction) => {
+    if (tx.type === 'sale') return `Penjualan: ${tx.items.length} barang`;
+    if (tx.type === 'service') return `Servis: ${tx.serviceName}`;
+    return 'Tipe Tidak Dikenal';
+  };
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl font-headline">Riwayat Transaksi</CardTitle>
+        <CardDescription>Penjualan dan servis yang terhubung dengan {customerName}.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {transactions.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">Tidak ada riwayat transaksi untuk pelanggan ini.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Tipe</TableHead>
+                <TableHead>Deskripsi</TableHead>
+                <TableHead className="text-right">Jumlah</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((tx) => (
+                <TableRow key={tx.id}>
+                  <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy HH:mm', { locale: LocaleID })}</TableCell>
+                  <TableCell>
+                    <Badge variant={tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">
+                      {tx.type === 'sale' ? <ShoppingBag className="mr-1 h-3 w-3" /> : <Wrench className="mr-1 h-3 w-3" />}
+                      {tx.type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{getTransactionSummary(tx)}</TableCell>
+                  <TableCell className="text-right font-medium text-green-600">
+                    +{formatCurrency(tx.type === 'sale' ? tx.grandTotal : (tx.type === 'service' ? tx.serviceFee : 0))}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/transactions/${tx.id}`}>
+                        <ViewIcon className="mr-1 h-4 w-4" /> Lihat
+                      </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }

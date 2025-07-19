@@ -45,6 +45,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          notes: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -54,6 +55,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          notes?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -63,6 +65,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          notes?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
