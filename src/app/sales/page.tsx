@@ -14,9 +14,9 @@ import { useInventory } from '@/context/inventory-context';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { CustomerCombobox } from '@/components/ui/customer-combobox'; 
-import { useCustomers } from '@/context/customer-context'; 
-
+import { CustomerCombobox } from '@/components/ui/customer-combobox';
+import { useCustomers } from '@/context/customer-context';
+import { InventoryCombobox } from '@/components/ui/inventory-combobox'; // Import Combobox baru
 
 // Skema validasi untuk satu item penjualan
 const saleItemSchema = z.object({
@@ -29,19 +29,18 @@ const saleItemSchema = z.object({
 const saleFormSchema = z.object({
   customer: z.object({
     id: z.string().optional(),
-    name: z.string().min(1, "Nama pelanggan harus diisi"),
+    name: z.string().min(1, 'Nama pelanggan harus diisi'),
   }),
-  items: z.array(saleItemSchema).min(1, "Minimal ada satu barang"),
+  items: z.array(saleItemSchema).min(1, 'Minimal ada satu barang'),
   paymentMethod: z.enum(['cash', 'transfer', 'qris']),
 });
-
 
 type SaleFormValues = z.infer<typeof saleFormSchema>;
 
 export default function RecordSalePage() {
-  const { customers, isLoading: isLoadingCustomers } = useCustomers(); 
+  const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { addTransaction } = useTransactions();
-  const { inventoryItems, findItemByName } = useInventory();
+  const { inventoryItems, findItemByName, isLoading: isLoadingInventory } = useInventory();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +48,7 @@ export default function RecordSalePage() {
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),
     defaultValues: {
-      customer: { id: undefined, name: "" }, 
+      customer: { id: undefined, name: '' },
       items: [{ name: '', quantity: 1, pricePerItem: 0 }],
       paymentMethod: 'cash',
     },
@@ -118,10 +117,7 @@ export default function RecordSalePage() {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Nama Pelanggan</FormLabel>
-                  <CustomerCombobox
-                    value={{ ...field.value, id: field.value.id || '' }}
-                    onChange={field.onChange}
-                  />
+                  <CustomerCombobox isLoading={isLoadingCustomers} value={{ ...field.value, id: field.value.id || '' }} onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}
@@ -134,26 +130,22 @@ export default function RecordSalePage() {
                 <div key={field.id} className="grid grid-cols-12 gap-3 items-start p-4 border rounded-lg">
                   <FormField
                     control={form.control}
-                    name={`items.${index}.name`}
-                    render={({ field: formField }) => (
+                    name={`items.${index}.name`} // Tetap terhubung ke field 'name'
+                    render={({ field }) => (
                       <FormItem className="col-span-12 md:col-span-5">
                         <FormLabel className="sr-only">Nama Barang</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Nama Barang"
-                            {...formField}
-                            onChange={(e) => {
-                              formField.onChange(e);
-                              handleItemNameChange(index, e.target.value);
+                          <InventoryCombobox
+                            // 'value' adalah nilai nama barang yang sudah terpilih di form
+                            value={field.value}
+                            // 'onSelect' akan memperbarui field 'name' dan 'pricePerItem'
+                            onSelect={(selectedItem) => {
+                              form.setValue(`items.${index}.name`, selectedItem.name);
+                              form.setValue(`items.${index}.pricePerItem`, selectedItem.price);
                             }}
-                            list="inventory-items-datalist"
+                            isLoading={isLoadingInventory}
                           />
                         </FormControl>
-                        <datalist id="inventory-items-datalist">
-                          {inventoryItems.map((invItem) => (
-                            <option key={invItem.id} value={invItem.name} />
-                          ))}
-                        </datalist>
                         <FormMessage />
                       </FormItem>
                     )}

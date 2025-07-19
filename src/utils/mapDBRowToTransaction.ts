@@ -5,6 +5,7 @@ export function mapDbRowToTransaction(tx: any): Transaction | null {
     id: tx.id,
     date: tx.created_at,
     customerName: tx.customer_name,
+    customerId: tx.customer_id,
     total_amount: tx.total_amount,
   };
 

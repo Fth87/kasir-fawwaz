@@ -41,6 +41,10 @@ interface TransactionContextType {
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
   getTransactionsByCustomerId: (customerId: string) => Transaction[];
+  getCustomerTransactions: (customerId: string) => { 
+    transactions: Transaction[]; 
+    isLoading: boolean;
+  };
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -253,8 +257,40 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions]);
+ const getCustomerTransactions = (customerId: string) => {
+    const [customerTransactions, setCustomerTransactions] = useState<Transaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId }}>{children}</TransactionContext.Provider>;
+    useEffect(() => {
+      if (!customerId) {
+        setIsLoading(false);
+        return;
+      }
+
+      const fetchCustomerTxs = async () => {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('customer_id', customerId) // <-- Filter utama di sini
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          toast({ title: "Error", description: "Gagal memuat riwayat transaksi pelanggan.", variant: "destructive" });
+          setCustomerTransactions([]);
+        } else {
+          const formattedTransactions = data.map(mapDbRowToTransaction).filter(Boolean) as Transaction[];
+          setCustomerTransactions(formattedTransactions);
+        }
+        setIsLoading(false);
+      };
+
+      fetchCustomerTxs();
+    }, [customerId]); // Jalankan setiap kali customerId berubah
+
+    return { transactions: customerTransactions, isLoading };
+  };
+  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, getCustomerTransactions }}>{children}</TransactionContext.Provider>;
 };
 
 export const useTransactions = () => {

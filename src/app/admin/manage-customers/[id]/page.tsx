@@ -1,16 +1,25 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+
+// Hooks & Contexts
 import { useCustomers } from '@/context/customer-context';
 import { useTransactions } from '@/context/transaction-context';
+import { useAuth } from '@/context/auth-context';
+
+// Types
 import type { Customer, Transaction } from '@/types';
+
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserCircle, Phone, Mail, MapPin, FileText, ShoppingBag, Wrench, Loader2, ViewIcon } from 'lucide-react';
+import { ArrowLeft, UserCircle, Phone, Mail, MapPin, FileText, ShoppingBag, Wrench, Loader2, ShieldAlert, Eye as ViewIcon } from 'lucide-react';
+
+// Date & Formatting
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
@@ -19,31 +28,65 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
+
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { getCustomerById, isLoading: isLoadingCustomers } = useCustomers();
-  // Ambil fungsi baru dan isLoading dari context
-  const { getTransactionsByCustomerId, isLoading: isLoadingTransactions } = useTransactions();
+  const { transactions: allTransactions, isLoading: isLoadingTransactions } = useTransactions();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   
   const customerId = params.id as string;
+  
+  // Ambil data pelanggan dari state
   const customer = getCustomerById(customerId);
-  const customerTransactions = getTransactionsByCustomerId(customerId);
 
-  const isLoading = isLoadingCustomers || isLoadingTransactions;
+  // Filter transaksi di sisi klien
+  const customerTransactions = React.useMemo(() => {
+    if (!customerId) return [];
+    return allTransactions
+      .filter(tx => 'customerId' in tx && tx.customerId === customerId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [customerId, allTransactions]);
+
+  const isLoading = isLoadingCustomers || isLoadingTransactions || isLoadingAuth;
+  
+  useEffect(() => {
+    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
+      router.replace('/');
+    }
+  }, [currentUser, isLoadingAuth, router]);
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  
+  if (!currentUser || currentUser.role !== 'admin') {
+     return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <ShieldAlert className="h-12 w-12 text-destructive" />
+        <p className="text-muted-foreground">Akses Ditolak. Hanya untuk Admin.</p>
+      </div>
+    );
   }
 
   if (!customer) {
     return (
-      <div className="text-center py-10">
-        <h2 className="text-2xl font-semibold mb-4">Pelanggan Tidak Ditemukan</h2>
-        <Button onClick={() => router.push('/admin/manage-customers')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Daftar Pelanggan
-        </Button>
-      </div>
+      <Card className="max-w-md mx-auto text-center py-10">
+        <CardHeader>
+          <CardTitle>Pelanggan Tidak Ditemukan</CardTitle>
+          <CardDescription>Data pelanggan yang Anda cari tidak ada.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => router.push('/admin/manage-customers')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Daftar Pelanggan
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -62,8 +105,8 @@ function CustomerInfoCard({ customer }: { customer: Customer }) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserCircle className="h-10 w-10 text-primary" />
+          <div className="flex items-center gap-4">
+            <UserCircle className="h-12 w-12 text-primary" />
             <div>
               <CardTitle className="text-3xl font-headline">{customer.name}</CardTitle>
               <CardDescription>Pelanggan sejak {format(parseISO(customer.createdAt), 'dd MMMM yyyy', { locale: LocaleID })}</CardDescription>
@@ -74,7 +117,7 @@ function CustomerInfoCard({ customer }: { customer: Customer }) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6 border-t">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {customer.phone && <InfoItem icon={Phone} label="Telepon" value={customer.phone} />}
           {customer.address && <InfoItem icon={MapPin} label="Alamat" value={customer.address} className="md:col-span-2" />}
@@ -85,7 +128,7 @@ function CustomerInfoCard({ customer }: { customer: Customer }) {
   );
 }
 
-// Sub-komponen untuk item informasi
+// Sub-komponen generik untuk menampilkan item informasi
 function InfoItem({ icon: Icon, label, value, className = "" }: { icon: React.ElementType, label: string, value: string, className?: string }) {
     return (
         <div className={`flex items-start gap-3 ${className}`}>
@@ -116,41 +159,46 @@ function TransactionHistoryCard({ transactions, customerName }: { transactions: 
         {transactions.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">Tidak ada riwayat transaksi untuk pelanggan ini.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tanggal</TableHead>
-                <TableHead>Tipe</TableHead>
-                <TableHead>Deskripsi</TableHead>
-                <TableHead className="text-right">Jumlah</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy HH:mm', { locale: LocaleID })}</TableCell>
-                  <TableCell>
-                    <Badge variant={tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">
-                      {tx.type === 'sale' ? <ShoppingBag className="mr-1 h-3 w-3" /> : <Wrench className="mr-1 h-3 w-3" />}
-                      {tx.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{getTransactionSummary(tx)}</TableCell>
-                  <TableCell className="text-right font-medium text-green-600">
-                    +{formatCurrency(tx.type === 'sale' ? tx.grandTotal : (tx.type === 'service' ? tx.serviceFee : 0))}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/transactions/${tx.id}`}>
-                        <ViewIcon className="mr-1 h-4 w-4" /> Lihat
-                      </Link>
-                    </Button>
-                  </TableCell>
+          <div className="border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Tipe</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead className="text-right">Jumlah</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>{format(parseISO(tx.date), 'dd MMM yyyy, HH:mm', { locale: LocaleID })}</TableCell>
+                    <TableCell>
+                      <Badge variant={tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">
+                        {tx.type === 'sale' ? <ShoppingBag className="mr-1 h-3 w-3" /> : <Wrench className="mr-1 h-3 w-3" />}
+                        {tx.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-medium">{getTransactionSummary(tx)}</p>
+                      <p className="text-xs text-muted-foreground font-mono">ID: {tx.id.substring(0, 8)}</p>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-green-600">
+                      +{formatCurrency(tx.type === 'sale' ? tx.grandTotal : (tx.type === 'service' ? tx.serviceFee : 0))}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/transactions/${tx.id}`}>
+                          <ViewIcon className="mr-1 h-4 w-4" /> Lihat
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>
