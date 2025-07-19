@@ -10,6 +10,7 @@ import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 type AddSaleTransactionInput = {
   type: 'sale';
   customerName: string;
+  customerId?: string; 
   paymentMethod: 'cash' | 'transfer' | 'qris';
   items: Omit<SaleTransaction['items'][0], 'id' | 'total'>[];
 };
@@ -85,6 +86,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         transactionToInsert = {
           type: 'sale',
           customer_name: saleData.customerName,
+          customer_id: transactionData.customerId,
           total_amount: grandTotal,
           details: {
             paymentMethod: saleData.paymentMethod,
