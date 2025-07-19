@@ -12,11 +12,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useTransactions } from '@/context/transaction-context';
 import { useToast } from '@/hooks/use-toast';
 import { BadgeDollarSign, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const expenseFormSchema = z.object({
-  description: z.string().min(1, "Expense description is required"),
+  description: z.string().min(1, "Deskripsi pengeluaran harus diisi"),
   category: z.string().optional(),
-  amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
+  amount: z.coerce.number().min(1, "Jumlah harus lebih besar dari 0"),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
@@ -24,7 +25,9 @@ type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 export default function RecordExpensePage() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
@@ -37,23 +40,34 @@ export default function RecordExpensePage() {
   const onSubmit = async (data: ExpenseFormValues) => {
     setIsLoading(true);
     try {
-      // Simulating an async operation, if addTransaction were async
-      // await new Promise(resolve => setTimeout(resolve, 1000)); 
-      addTransaction({
+      // Panggil addTransaction dengan await karena ini adalah operasi database
+      const success = await addTransaction({
         type: 'expense',
         description: data.description,
-        category: data.category,
+        category: data.category || "",
         amount: data.amount,
       });
-      toast({
-        title: "Expense Recorded",
-        description: "The expense has been successfully recorded.",
-      });
-      form.reset();
+
+      if (success) {
+        toast({
+          title: "Pengeluaran Tercatat",
+          description: "Data pengeluaran berhasil disimpan.",
+        });
+        form.reset();
+        // Arahkan ke halaman utama transaksi setelah berhasil
+        router.push('/transactions'); 
+      } else {
+        toast({
+          title: "Error",
+          description: "Gagal merekam pengeluaran. Silakan coba lagi.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
+      console.error("Error saat merekam pengeluaran:", error);
       toast({
         title: "Error",
-        description: "Failed to record expense. Please try again.",
+        description: "Terjadi kesalahan yang tidak terduga.",
         variant: "destructive",
       });
     } finally {
@@ -65,21 +79,21 @@ export default function RecordExpensePage() {
     <Card className="w-full max-w-lg mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl font-headline flex items-center">
-          <BadgeDollarSign className="mr-2 h-6 w-6" /> Record Expense
+          <BadgeDollarSign className="mr-2 h-6 w-6" /> Rekam Pengeluaran
         </CardTitle>
-        <CardDescription>Enter the details of the expense.</CardDescription>
+        <CardDescription>Masukkan detail pengeluaran yang terjadi.</CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <CardContent className="space-y-6">
             <FormField
               control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Deskripsi</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="e.g., Electricity Bill, Purchase Stock" {...field} />
+                    <Textarea placeholder="cth: Bayar Listrik, Beli Stok Casing" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -90,9 +104,9 @@ export default function RecordExpensePage() {
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Category (Optional)</FormLabel>
+                  <FormLabel>Kategori (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Utilities, Supplies" {...field} />
+                    <Input placeholder="cth: Utilitas, Perlengkapan" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -103,7 +117,7 @@ export default function RecordExpensePage() {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount (IDR)</FormLabel>
+                  <FormLabel>Jumlah (IDR)</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="100000" {...field} />
                   </FormControl>
@@ -113,14 +127,11 @@ export default function RecordExpensePage() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Recording...
-                </>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                "Record Expense"
+                "Rekam Pengeluaran"
               )}
             </Button>
           </CardFooter>

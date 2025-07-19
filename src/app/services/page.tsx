@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,14 +14,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Wrench, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// 1. Skema diperbarui dengan device dan issueDescription
 const serviceFormSchema = z.object({
-  serviceName: z.string().min(1, "Service name is required"),
+  serviceName: z.string().min(1, 'Nama layanan harus diisi'),
+  device: z.string().min(1, 'Nama/tipe perangkat harus diisi'),
+  issueDescription: z.string().min(1, 'Deskripsi masalah harus diisi'),
   customerName: z.string().optional(),
-  customerPhone: z.string().optional().refine(val => !val || /^[0-9\s+-]+$/.test(val), {
-    message: "Invalid phone number format",
-  }),
-  customerAddress: z.string().optional(),
-  serviceFee: z.coerce.number().min(0, "Service fee must be non-negative"),
+  price: z.coerce.number().min(0, 'Biaya servis tidak boleh negatif'),
 });
 
 type ServiceFormValues = z.infer<typeof serviceFormSchema>;
@@ -32,41 +30,53 @@ export default function RecordServicePage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
-      serviceName: "",
-      customerName: "",
-      customerPhone: "",
-      customerAddress: "",
-      serviceFee: 0,
+      serviceName: '',
+      device: '',
+      issueDescription: '',
+      customerName: '',
+      price: 0,
     },
   });
 
-  const onSubmit = (data: ServiceFormValues) => {
+  // 2. Fungsi onSubmit diubah menjadi async
+  const onSubmit = async (data: ServiceFormValues) => {
     setIsLoading(true);
     try {
-      const newTransaction = addTransaction({
+      // 3. Panggil addTransaction dengan await dan kirim data yang sesuai
+      const success = await addTransaction({
         type: 'service',
         serviceName: data.serviceName,
-        customerName: data.customerName,
-        customerPhone: data.customerPhone,
-        customerAddress: data.customerAddress,
-        serviceFee: data.serviceFee,
+        customerName: data.customerName || 'Anonymous',
+        device: data.device,
+        issueDescription: data.issueDescription,
+        price: data.price,
       });
-      toast({
-        title: "Service Recorded",
-        description: "The service income has been successfully recorded.",
-      });
-      form.reset();
-      if (newTransaction && newTransaction.id) {
-        router.push(`/transactions/${newTransaction.id}`);
+
+      if (success) {
+        toast({
+          title: 'Servis Tercatat',
+          description: 'Transaksi servis berhasil direkam.',
+        });
+        form.reset();
+        // 4. Redirect ke halaman daftar transaksi
+        router.push('/transactions');
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Gagal merekam servis. Silakan coba lagi.',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
+      console.error('Error saat merekam servis:', error);
       toast({
-        title: "Error",
-        description: "Failed to record service. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Terjadi kesalahan yang tidak terduga.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -77,21 +87,47 @@ export default function RecordServicePage() {
     <Card className="w-full max-w-lg mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl font-headline flex items-center">
-          <Wrench className="mr-2 h-6 w-6" /> Record Service Income
+          <Wrench className="mr-2 h-6 w-6" /> Rekam Transaksi Servis
         </CardTitle>
-        <CardDescription>Enter the details of the service transaction.</CardDescription>
+        <CardDescription>Masukkan detail dari layanan servis yang diberikan.</CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <CardContent className="space-y-6">
             <FormField
               control={form.control}
               name="serviceName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Service Name</FormLabel>
+                  <FormLabel>Nama Layanan</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Screen Replacement" {...field} />
+                    <Input placeholder="cth: Ganti Layar iPhone 11" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="device"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Perangkat</FormLabel>
+                  <FormControl>
+                    <Input placeholder="cth: iPhone 11 Pro" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="issueDescription"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Deskripsi Masalah</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="cth: Layar retak setelah jatuh, sebagian tidak bisa disentuh." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -102,9 +138,9 @@ export default function RecordServicePage() {
               name="customerName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Customer Name (Optional)</FormLabel>
+                  <FormLabel>Nama Pelanggan (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter customer name" {...field} />
+                    <Input placeholder="Masukkan nama pelanggan" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -112,36 +148,10 @@ export default function RecordServicePage() {
             />
             <FormField
               control={form.control}
-              name="customerPhone"
+              name="price"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Customer Phone (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="e.g., 08123456789" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="customerAddress"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer Address (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Enter customer address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="serviceFee"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Service Fee (IDR)</FormLabel>
+                  <FormLabel>Biaya Servis (IDR)</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="150000" {...field} />
                   </FormControl>
@@ -151,15 +161,8 @@ export default function RecordServicePage() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Recording...
-                </>
-              ) : (
-                "Record Service Income"
-              )}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Rekam Servis'}
             </Button>
           </CardFooter>
         </form>

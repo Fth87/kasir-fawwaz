@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "gen-types": "pnpx supabase gen types typescript --linked > types/supabase.ts"
+    "gen-types": "pnpx supabase gen types typescript --linked > src/types/supabase.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
