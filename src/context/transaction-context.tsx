@@ -39,6 +39,7 @@ interface TransactionContextType {
   getTransactionById: (id: string) => Transaction | undefined;
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
+  getTransactionsByCustomerId: (customerId: string) => Transaction[];
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -159,92 +160,99 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     },
     [supabase, toast]
   );
-const updateTransactionDetails = useCallback(
-  async (transactionId: string, updates: Partial<Transaction>): Promise<boolean> => {
-    // 1. Cari transaksi yang ada di state untuk mendapatkan data asli & tipenya
-    const currentTx = transactions.find(tx => tx.id === transactionId);
-    if (!currentTx) {
-      toast({ title: 'Error', description: 'Transaksi tidak ditemukan.', variant: 'destructive' });
-      return false;
-    }
-    
-    // Objek kosong untuk menampung data yang akan dikirim ke Supabase
-    const updatesForDb: { [key: string]: any } = {};
+  const updateTransactionDetails = useCallback(
+    async (transactionId: string, updates: Partial<Transaction>): Promise<boolean> => {
+      // 1. Cari transaksi yang ada di state untuk mendapatkan data asli & tipenya
+      const currentTx = transactions.find((tx) => tx.id === transactionId);
+      if (!currentTx) {
+        toast({ title: 'Error', description: 'Transaksi tidak ditemukan.', variant: 'destructive' });
+        return false;
+      }
 
-    // 2. Gunakan switch pada TIPE ASLI untuk type narrowing yang aman
-    switch (currentTx.type) {
-      case 'sale': {
-        // Di sini, TypeScript tahu `currentTx` adalah SaleTransaction
-        // dan `updates` kemungkinan adalah Partial<SaleTransaction>
-        const saleUpdates = updates as Partial<SaleTransaction>;
+      // Objek kosong untuk menampung data yang akan dikirim ke Supabase
+      const updatesForDb: { [key: string]: any } = {};
 
-        // 3. Gabungkan 'details' lama dan baru secara aman
-        const newDetails = {
-          paymentMethod: saleUpdates.paymentMethod || currentTx.paymentMethod,
-          items: saleUpdates.items || currentTx.items,
-        };
-        updatesForDb.details = newDetails;
+      // 2. Gunakan switch pada TIPE ASLI untuk type narrowing yang aman
+      switch (currentTx.type) {
+        case 'sale': {
+          // Di sini, TypeScript tahu `currentTx` adalah SaleTransaction
+          // dan `updates` kemungkinan adalah Partial<SaleTransaction>
+          const saleUpdates = updates as Partial<SaleTransaction>;
 
-        // Siapkan update untuk kolom level atas
-        updatesForDb.customer_name = saleUpdates.customerName || currentTx.customerName;
+          // 3. Gabungkan 'details' lama dan baru secara aman
+          const newDetails = {
+            paymentMethod: saleUpdates.paymentMethod || currentTx.paymentMethod,
+            items: saleUpdates.items || currentTx.items,
+          };
+          updatesForDb.details = newDetails;
 
-        // 4. Lakukan kalkulasi ulang jika data yang relevan berubah
-        if (saleUpdates.items) {
-          updatesForDb.total_amount = newDetails.items.reduce((sum, item) => sum + (item.quantity * item.pricePerItem), 0);
-        } else {
-          updatesForDb.total_amount = saleUpdates.grandTotal || currentTx.grandTotal;
+          // Siapkan update untuk kolom level atas
+          updatesForDb.customer_name = saleUpdates.customerName || currentTx.customerName;
+
+          // 4. Lakukan kalkulasi ulang jika data yang relevan berubah
+          if (saleUpdates.items) {
+            updatesForDb.total_amount = newDetails.items.reduce((sum, item) => sum + item.quantity * item.pricePerItem, 0);
+          } else {
+            updatesForDb.total_amount = saleUpdates.grandTotal || currentTx.grandTotal;
+          }
+          break;
         }
-        break;
-      }
-      
-      case 'service': {
-        const serviceUpdates = updates as Partial<ServiceTransaction>;
-        const newDetails = {
-          serviceName: serviceUpdates.serviceName || currentTx.serviceName,
-          device: serviceUpdates.device || currentTx.device,
-          issueDescription: serviceUpdates.issueDescription || currentTx.issueDescription,
-          status: serviceUpdates.status || currentTx.status,
-          progressNotes: serviceUpdates.progressNotes || currentTx.progressNotes,
-        };
-        updatesForDb.details = newDetails;
-        updatesForDb.customer_name = serviceUpdates.customerName || currentTx.customerName;
-        updatesForDb.total_amount = serviceUpdates.serviceFee || currentTx.serviceFee;
-        break;
+
+        case 'service': {
+          const serviceUpdates = updates as Partial<ServiceTransaction>;
+          const newDetails = {
+            serviceName: serviceUpdates.serviceName || currentTx.serviceName,
+            device: serviceUpdates.device || currentTx.device,
+            issueDescription: serviceUpdates.issueDescription || currentTx.issueDescription,
+            status: serviceUpdates.status || currentTx.status,
+            progressNotes: serviceUpdates.progressNotes || currentTx.progressNotes,
+          };
+          updatesForDb.details = newDetails;
+          updatesForDb.customer_name = serviceUpdates.customerName || currentTx.customerName;
+          updatesForDb.total_amount = serviceUpdates.serviceFee || currentTx.serviceFee;
+          break;
+        }
+
+        case 'expense': {
+          const expenseUpdates = updates as Partial<ExpenseTransaction>;
+          const newDetails = {
+            description: expenseUpdates.description || currentTx.description,
+            category: expenseUpdates.category || currentTx.category,
+          };
+          updatesForDb.details = newDetails;
+          updatesForDb.total_amount = expenseUpdates.amount || currentTx.amount;
+          break;
+        }
       }
 
-      case 'expense': {
-        const expenseUpdates = updates as Partial<ExpenseTransaction>;
-        const newDetails = {
-          description: expenseUpdates.description || currentTx.description,
-          category: expenseUpdates.category || currentTx.category,
-        };
-        updatesForDb.details = newDetails;
-        updatesForDb.total_amount = expenseUpdates.amount || currentTx.amount;
-        break;
+      // 5. Kirim data yang sudah bersih dan aman ke Supabase
+      const { error } = await supabase.from('transactions').update(updatesForDb).eq('id', transactionId);
+
+      if (error) {
+        toast({ title: 'Error', description: 'Gagal memperbarui transaksi.', variant: 'destructive' });
+        console.error('Error updating transaction:', error);
+        return false;
       }
-    }
 
-    // 5. Kirim data yang sudah bersih dan aman ke Supabase
-    const { error } = await supabase
-      .from('transactions')
-      .update(updatesForDb)
-      .eq('id', transactionId);
+      toast({ title: 'Sukses', description: 'Transaksi berhasil diperbarui.' });
+      fetchTransactions();
+      return true;
+    },
+    [supabase, toast, fetchTransactions, transactions]
+  );
 
-    if (error) {
-      toast({ title: 'Error', description: 'Gagal memperbarui transaksi.', variant: 'destructive' });
-      console.error('Error updating transaction:', error);
+    const getTransactionsByCustomerId = useCallback((customerId: string): Transaction[] => {
+    if (!customerId) return [];
+    return transactions.filter(tx => {
+      // Mencocokkan berdasarkan properti customerId yang mungkin ada
+      if ('customerId' in tx && tx.customerId === customerId) {
+        return true;
+      }
       return false;
-    }
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions]);
 
-    toast({ title: 'Sukses', description: 'Transaksi berhasil diperbarui.' });
-    fetchTransactions();
-    return true;
-  },
-  [supabase, toast, fetchTransactions, transactions]
-);
-
-
-  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails }}>{children}</TransactionContext.Provider>;
+  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId }}>{children}</TransactionContext.Provider>;
 };
 
 export const useTransactions = () => {

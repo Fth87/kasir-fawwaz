@@ -41,6 +41,7 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
           name: c.name,
           phone: c.phone ?? undefined,
           address: c.address ?? undefined,
+          notes: c.notes ?? undefined,
           user_id: c.user_id,
           createdAt: c.created_at,
           updatedAt: c.updated_at,
