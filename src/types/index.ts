@@ -1,5 +1,3 @@
-
-
 export type SaleItem = {
   id: string;
   name: string;
@@ -14,6 +12,7 @@ export type SaleTransaction = {
   type: 'sale';
   date: string; // ISO string
   items: SaleItem[];
+  paymentMethod: 'cash' | 'transfer' | 'qris';
   customerName?: string; // This will be used to link to Customer if customerId is not present
   customerId?: string; // Optional: to link to a specific customer in CRM
   grandTotal: number;
@@ -32,7 +31,7 @@ export const ServiceStatusOptions = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ] as const;
 
-export type ServiceStatusValue = typeof ServiceStatusOptions[number]['value'];
+export type ServiceStatusValue = (typeof ServiceStatusOptions)[number]['value'];
 
 export type ProgressNote = {
   id: string;
@@ -44,6 +43,8 @@ export type ServiceTransaction = {
   id: string;
   type: 'service';
   date: string; // ISO string
+  device: string;
+  issueDescription: string;
   serviceName: string;
   customerName?: string; // Used for display and linking if customerId not present
   customerPhone?: string; // Used for display and linking if customerId not present
@@ -67,7 +68,7 @@ export type Transaction = SaleTransaction | ServiceTransaction | ExpenseTransact
 
 export function getServiceStatusLabel(statusValue?: ServiceStatusValue): string {
   if (!statusValue) return 'N/A';
-  const option = ServiceStatusOptions.find(opt => opt.value === statusValue);
+  const option = ServiceStatusOptions.find((opt) => opt.value === statusValue);
   return option ? option.label : statusValue;
 }
 
