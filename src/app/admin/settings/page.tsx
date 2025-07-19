@@ -1,13 +1,10 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAuth } from '@/context/auth-context';
 import { useSettings } from '@/context/settings-context';
-import type { StoreSettings } from '@/types';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,55 +12,84 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Save, ShieldAlert, Settings as SettingsIcon } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
+// Skema validasi tidak perlu diubah, sudah bagus
 const settingsFormSchema = z.object({
-  storeName: z.string().min(1, "Store name is required"),
+  storeName: z.string().min(1, "Nama toko harus diisi"),
   storeAddress: z.string().optional(),
   storePhone: z.string().optional(),
-  storeEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
+  storeEmail: z.string().email("Format email tidak valid").optional().or(z.literal("")),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
+const defaultFormValues: SettingsFormValues = {
+  storeName: '',
+  storeAddress: '',
+  storePhone: '',
+  storeEmail: '',
+};
+
 export default function StoreSettingsPage() {
-  const { currentUser, isLoadingAuth } = useAuth();
+  const { user, isLoading: isLoadingAuth } = useAuth();
   const { settings, updateSettings, isLoadingSettings } = useSettings();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 1. Inisialisasi form dengan nilai default yang statis
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
-    defaultValues: settings, // Initialize with current settings
+    defaultValues: defaultFormValues,
   });
 
+  // 2. useEffect untuk proteksi rute (sudah benar)
   useEffect(() => {
-    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
+    if (!isLoadingAuth && (!user || user.role !== 'admin')) {
       router.replace('/');
     }
-  }, [currentUser, isLoadingAuth, router]);
+  }, [user, isLoadingAuth, router]);
 
+  // 3. useEffect untuk mengisi form setelah data dari Supabase selesai dimuat
   useEffect(() => {
-    // Reset form with latest settings once they are loaded or changed
-    if (!isLoadingSettings) {
+    if (!isLoadingSettings && settings) {
       form.reset(settings);
     }
   }, [settings, isLoadingSettings, form]);
 
-
+  // 4. Fungsi onSubmit diubah menjadi async
   const onSubmit = async (data: SettingsFormValues) => {
     setIsSubmitting(true);
-    updateSettings(data);
-    setIsSubmitting(false);
-    // Toast is handled within updateSettings
+    try {
+      // Panggil updateSettings dengan await dan periksa hasilnya
+      const success = await updateSettings(data);
+      if (!success) {
+        // Toast untuk error sudah ditangani di dalam context,
+        // tapi kita bisa tambahkan logika tambahan di sini jika perlu.
+        console.error("Gagal menyimpan pengaturan.");
+      }
+    } catch (error) {
+      console.error("Error saat menyimpan pengaturan:", error);
+      // Toast juga sudah ada di context
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (isLoadingAuth || isLoadingSettings || !currentUser || currentUser.role !== 'admin') {
+  // State loading dan akses (sudah benar)
+  if (isLoadingAuth || isLoadingSettings) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        {isLoadingAuth || isLoadingSettings ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ShieldAlert className="h-12 w-12 text-destructive" />}
-        <p className="text-muted-foreground">
-          {isLoadingAuth || isLoadingSettings ? 'Loading settings...' : 'Access Denied. Admins only.'}
-        </p>
+        <ShieldAlert className="h-12 w-12 text-destructive" />
+        <p className="text-muted-foreground">Akses Ditolak. Hanya untuk Admin.</p>
       </div>
     );
   }
@@ -72,70 +98,65 @@ export default function StoreSettingsPage() {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl font-headline flex items-center">
-          <SettingsIcon className="mr-2 h-6 w-6" /> Store Settings
+          <SettingsIcon className="mr-2 h-6 w-6" /> Pengaturan Toko
         </CardTitle>
-        <CardDescription>Manage your store's information. This will be used on receipts and other documents.</CardDescription>
+        <CardDescription>
+          Kelola informasi toko Anda. Info ini akan digunakan pada struk dan dokumen lainnya.
+        </CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <CardContent className="space-y-6">
+            {/* ... FormField untuk storeName, storeAddress, storePhone, storeEmail ... (tidak ada perubahan) */}
             <FormField
               control={form.control}
               name="storeName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Store Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Kasir Konter Jaya" {...field} />
-                  </FormControl>
+                  <FormLabel>Nama Toko</FormLabel>
+                  <FormControl><Input placeholder="cth: Konter Jaya" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
+             <FormField
               control={form.control}
               name="storeAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Store Address (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="e.g., Jl. Pahlawan No. 1, Kota Konter" {...field} />
-                  </FormControl>
+                  <FormLabel>Alamat Toko (Opsional)</FormLabel>
+                  <FormControl><Textarea placeholder="cth: Jl. Pahlawan No. 1" {...field} value={field.value ?? ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
+             <FormField
               control={form.control}
               name="storePhone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Store Phone (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="e.g., 021-1234567" {...field} />
-                  </FormControl>
+                  <FormLabel>Telepon Toko (Opsional)</FormLabel>
+                  <FormControl><Input type="tel" placeholder="cth: 08123456789" {...field} value={field.value ?? ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
+             <FormField
               control={form.control}
               name="storeEmail"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Store Email (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="e.g., contact@konterjaya.com" {...field} />
-                  </FormControl>
+                  <FormLabel>Email Toko (Opsional)</FormLabel>
+                  <FormControl><Input type="email" placeholder="cth: info@konterjaya.com" {...field} value={field.value ?? ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting || isLoadingSettings}>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Settings
+              Simpan Pengaturan
             </Button>
           </CardFooter>
         </form>
