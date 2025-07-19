@@ -141,6 +141,7 @@ export type Database = {
       transactions: {
         Row: {
           created_at: string
+          customer_id: string | null
           customer_name: string | null
           details: Json | null
           id: string
@@ -150,6 +151,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           customer_name?: string | null
           details?: Json | null
           id?: string
@@ -159,6 +161,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           customer_name?: string | null
           details?: Json | null
           id?: string
@@ -166,7 +169,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

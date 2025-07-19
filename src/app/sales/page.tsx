@@ -14,6 +14,9 @@ import { useInventory } from '@/context/inventory-context';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { CustomerCombobox } from '@/components/ui/customer-combobox'; 
+import { useCustomers } from '@/context/customer-context'; 
+
 
 // Skema validasi untuk satu item penjualan
 const saleItemSchema = z.object({
@@ -24,16 +27,19 @@ const saleItemSchema = z.object({
 
 // Skema validasi untuk keseluruhan form penjualan
 const saleFormSchema = z.object({
-  customerName: z.string().optional(),
-  items: z.array(saleItemSchema).min(1, 'Minimal ada satu barang dalam transaksi'),
-  paymentMethod: z.enum(['cash', 'transfer', 'qris'], {
-    required_error: 'Metode pembayaran harus dipilih',
+  customer: z.object({
+    id: z.string().optional(),
+    name: z.string().min(1, "Nama pelanggan harus diisi"),
   }),
+  items: z.array(saleItemSchema).min(1, "Minimal ada satu barang"),
+  paymentMethod: z.enum(['cash', 'transfer', 'qris']),
 });
+
 
 type SaleFormValues = z.infer<typeof saleFormSchema>;
 
 export default function RecordSalePage() {
+  const { customers, isLoading: isLoadingCustomers } = useCustomers(); 
   const { addTransaction } = useTransactions();
   const { inventoryItems, findItemByName } = useInventory();
   const { toast } = useToast();
@@ -43,7 +49,7 @@ export default function RecordSalePage() {
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),
     defaultValues: {
-      customerName: '',
+      customer: { id: undefined, name: "" }, 
       items: [{ name: '', quantity: 1, pricePerItem: 0 }],
       paymentMethod: 'cash',
     },
@@ -69,7 +75,8 @@ export default function RecordSalePage() {
       // Panggil addTransaction. Pengurangan stok terjadi otomatis di database via trigger.
       const success = await addTransaction({
         type: 'sale',
-        customerName: data.customerName || 'Walk-in Customer',
+        customerName: data.customer.name,
+        customerId: data.customer.id,
         paymentMethod: data.paymentMethod,
         items: data.items,
       });
@@ -107,13 +114,14 @@ export default function RecordSalePage() {
           <CardContent className="space-y-8">
             <FormField
               control={form.control}
-              name="customerName"
+              name="customer"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nama Pelanggan (Opsional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="cth: Budi" {...field} />
-                  </FormControl>
+                <FormItem className="flex flex-col">
+                  <FormLabel>Nama Pelanggan</FormLabel>
+                  <CustomerCombobox
+                    value={{ ...field.value, id: field.value.id || '' }}
+                    onChange={field.onChange}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
