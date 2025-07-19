@@ -74,7 +74,8 @@ export function getServiceStatusLabel(statusValue?: ServiceStatusValue): string 
 // --- Auth Types ---
 export type UserRole = 'admin' | 'cashier';
 
-export const UserRoles: UserRole[] = ['admin', 'cashier'];
+// types/index.ts
+export const UserRoles = ['admin', 'cashier'] as const;
 
 export type User = {
   id: string;
