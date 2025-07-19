@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 interface InventoryContextType {
   inventoryItems: InventoryItem[];
   isLoading: boolean;
-  addInventoryItem: (itemData: NewInventoryItemInput) => Promise<boolean>;
+  addInventoryItem: (itemData: NewInventoryItemInput) => Promise<InventoryItem | null>;
   updateInventoryItem: (id: string, updates: UpdateInventoryItemInput) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<boolean>;
   findItemByName: (name: string) => InventoryItem | undefined;
@@ -49,58 +49,68 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     fetchInventoryItems();
   }, [fetchInventoryItems]);
 
-  const addInventoryItem = useCallback(
-    async (itemData: NewInventoryItemInput): Promise<boolean> => {
-      const orQuery = [`name.eq.${itemData.name}`];
-      if (itemData.sku) {
-        orQuery.push(`sku.eq.${itemData.sku}`);
-      }
-      const { data: existingItems } = await supabase.from('inventory_items').select('name, sku').or(orQuery.join(','));
+ const addInventoryItem = useCallback(
+  async (itemData: NewInventoryItemInput): Promise<InventoryItem | null> => {
+    // 1. Validasi duplikat nama dan SKU langsung ke database
+    const orQuery = [`name.eq.${itemData.name}`];
+    // Hanya tambahkan pengecekan SKU jika SKU diisi
+    if (itemData.sku && itemData.sku.trim() !== '') {
+      orQuery.push(`sku.eq.${itemData.sku}`);
+    }
+    const { data: existingItems } = await supabase
+      .from('inventory_items')
+      .select('name, sku')
+      .or(orQuery.join(','));
 
-      if (existingItems && existingItems.length > 0) {
-        toast({ title: 'Error', description: 'Nama atau SKU barang sudah ada.', variant: 'destructive' });
-        return false;
-      }
+    if (existingItems && existingItems.length > 0) {
+      toast({ title: 'Error', description: 'Nama atau SKU barang sudah ada.', variant: 'destructive' });
+      return null;
+    }
 
-      const { data: newItem, error: insertError } = await supabase
-        .from('inventory_items')
-        .insert({
-          name: itemData.name,
-          sku: itemData.sku,
-          stock_quantity: itemData.stockQuantity,
-          purchase_price: itemData.purchasePrice,
-          selling_price: itemData.sellingPrice,
-          low_stock_threshold: itemData.lowStockThreshold,
-        })
-        .select()
-        .single();
+    // 2. Masukkan data baru dan minta data yang baru dibuat kembali
+    const { data: newItemData, error: insertError } = await supabase
+      .from('inventory_items')
+      .insert({
+        name: itemData.name,
+        sku: itemData.sku,
+        stock_quantity: itemData.stockQuantity,
+        purchase_price: itemData.purchasePrice,
+        selling_price: itemData.sellingPrice,
+        low_stock_threshold: itemData.lowStockThreshold,
+      })
+      .select()
+      .single();
 
-      if (insertError || !newItem) {
-        toast({ title: 'Error', description: 'Gagal menambahkan barang baru.', variant: 'destructive' });
-        return false;
-      }
-
-      setInventoryItems((prev) =>
-        [
-          ...prev,
-          {
-            id: newItem.id,
-            name: newItem.name,
-            sku: newItem.sku || undefined,
-            stockQuantity: newItem.stock_quantity,
-            purchasePrice: newItem.purchase_price || 0,
-            sellingPrice: newItem.selling_price,
-            lowStockThreshold: newItem.low_stock_threshold || undefined,
-            lastRestocked: newItem.last_restocked || undefined,
-          },
-        ].sort((a, b) => a.name.localeCompare(b.name))
-      );
-
-      toast({ title: 'Sukses', description: `Barang "${itemData.name}" berhasil ditambahkan.` });
-      return true;
-    },
-    [supabase, toast]
-  );
+    if (insertError || !newItemData) {
+      toast({ title: 'Error', description: 'Gagal menambahkan barang baru.', variant: 'destructive' });
+      console.error("Insert Error:", insertError);
+      return null;
+    }
+    
+    // 3. Format data dari database agar sesuai dengan tipe 'InventoryItem' di aplikasi
+    const formattedItem: InventoryItem = {
+      id: newItemData.id,
+      name: newItemData.name,
+      sku: newItemData.sku || undefined,
+      stockQuantity: newItemData.stock_quantity,
+      purchasePrice: newItemData.purchase_price || 0,
+      sellingPrice: newItemData.selling_price,
+      lowStockThreshold: newItemData.low_stock_threshold || undefined,
+      lastRestocked: newItemData.last_restocked || undefined,
+    };
+    
+    // 4. Update state lokal secara optimis (tanpa perlu fetch ulang)
+    setInventoryItems(prev => 
+      [...prev, formattedItem].sort((a, b) => a.name.localeCompare(b.name))
+    );
+    
+    toast({ title: 'Sukses', description: `Barang "${formattedItem.name}" berhasil ditambahkan.` });
+    
+    // 5. Kembalikan objek barang baru agar bisa langsung digunakan
+    return formattedItem;
+  },
+  [supabase, toast]
+);
 
   const updateInventoryItem = useCallback(
     async (id: string, updates: UpdateInventoryItemInput): Promise<boolean> => {
