@@ -38,6 +38,7 @@ interface TransactionContextType {
   addTransaction: (transactionData: AddTransactionInput) => Promise<boolean>;
   getTransactionById: (id: string) => Transaction | undefined;
   deleteTransaction: (transactionId: string) => Promise<boolean>;
+  updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -57,9 +58,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching transactions:', error);
       setTransactions([]);
     } else {
-      const formattedTransactions = data
-        .map(mapDbRowToTransaction)
-        .filter(Boolean) as Transaction[];
+      const formattedTransactions = data.map(mapDbRowToTransaction).filter(Boolean) as Transaction[];
 
       setTransactions(formattedTransactions);
     }
@@ -75,7 +74,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       let transactionToInsert;
 
       if (transactionData.type === 'sale') {
-        const saleData = transactionData; 
+        const saleData = transactionData;
         const itemsWithTotals = saleData.items.map((item) => ({
           ...item,
           total: item.quantity * item.pricePerItem,
@@ -87,12 +86,12 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
           customer_name: saleData.customerName,
           total_amount: grandTotal,
           details: {
-            paymentMethod: saleData.paymentMethod, 
+            paymentMethod: saleData.paymentMethod,
             items: itemsWithTotals,
           },
         };
       } else if (transactionData.type === 'service') {
-        const serviceData = transactionData; 
+        const serviceData = transactionData;
         transactionToInsert = {
           type: 'service',
           customer_name: serviceData.customerName,
@@ -118,23 +117,18 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
           },
         };
       }
-      const { data, error } = await supabase
-      .from('transactions')
-      .insert(transactionToInsert)
-      .select()
-      .single(); 
+      const { data, error } = await supabase.from('transactions').insert(transactionToInsert).select().single();
 
-      if (error  || !data) {
+      if (error || !data) {
         toast({ title: 'Error', description: 'Gagal menambahkan transaksi.', variant: 'destructive' });
         console.error('Error adding transaction:', error);
         return false;
       }
 
-
-    const finalTx = mapDbRowToTransaction(data);
-    if (finalTx) {
-      setTransactions((prev) => [finalTx, ...prev]);
-    }
+      const finalTx = mapDbRowToTransaction(data);
+      if (finalTx) {
+        setTransactions((prev) => [finalTx, ...prev]);
+      }
 
       toast({ title: 'Sukses', description: 'Transaksi baru berhasil ditambahkan.' });
       return true;
@@ -160,13 +154,97 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
 
       setTransactions((prev) => prev.filter((tx) => tx.id !== transactionId));
       toast({ title: 'Sukses', description: 'Transaksi berhasil dihapus.' });
-      
+
       return true;
     },
     [supabase, toast]
   );
+const updateTransactionDetails = useCallback(
+  async (transactionId: string, updates: Partial<Transaction>): Promise<boolean> => {
+    // 1. Cari transaksi yang ada di state untuk mendapatkan data asli & tipenya
+    const currentTx = transactions.find(tx => tx.id === transactionId);
+    if (!currentTx) {
+      toast({ title: 'Error', description: 'Transaksi tidak ditemukan.', variant: 'destructive' });
+      return false;
+    }
+    
+    // Objek kosong untuk menampung data yang akan dikirim ke Supabase
+    const updatesForDb: { [key: string]: any } = {};
 
-  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction }}>{children}</TransactionContext.Provider>;
+    // 2. Gunakan switch pada TIPE ASLI untuk type narrowing yang aman
+    switch (currentTx.type) {
+      case 'sale': {
+        // Di sini, TypeScript tahu `currentTx` adalah SaleTransaction
+        // dan `updates` kemungkinan adalah Partial<SaleTransaction>
+        const saleUpdates = updates as Partial<SaleTransaction>;
+
+        // 3. Gabungkan 'details' lama dan baru secara aman
+        const newDetails = {
+          paymentMethod: saleUpdates.paymentMethod || currentTx.paymentMethod,
+          items: saleUpdates.items || currentTx.items,
+        };
+        updatesForDb.details = newDetails;
+
+        // Siapkan update untuk kolom level atas
+        updatesForDb.customer_name = saleUpdates.customerName || currentTx.customerName;
+
+        // 4. Lakukan kalkulasi ulang jika data yang relevan berubah
+        if (saleUpdates.items) {
+          updatesForDb.total_amount = newDetails.items.reduce((sum, item) => sum + (item.quantity * item.pricePerItem), 0);
+        } else {
+          updatesForDb.total_amount = saleUpdates.grandTotal || currentTx.grandTotal;
+        }
+        break;
+      }
+      
+      case 'service': {
+        const serviceUpdates = updates as Partial<ServiceTransaction>;
+        const newDetails = {
+          serviceName: serviceUpdates.serviceName || currentTx.serviceName,
+          device: serviceUpdates.device || currentTx.device,
+          issueDescription: serviceUpdates.issueDescription || currentTx.issueDescription,
+          status: serviceUpdates.status || currentTx.status,
+          progressNotes: serviceUpdates.progressNotes || currentTx.progressNotes,
+        };
+        updatesForDb.details = newDetails;
+        updatesForDb.customer_name = serviceUpdates.customerName || currentTx.customerName;
+        updatesForDb.total_amount = serviceUpdates.serviceFee || currentTx.serviceFee;
+        break;
+      }
+
+      case 'expense': {
+        const expenseUpdates = updates as Partial<ExpenseTransaction>;
+        const newDetails = {
+          description: expenseUpdates.description || currentTx.description,
+          category: expenseUpdates.category || currentTx.category,
+        };
+        updatesForDb.details = newDetails;
+        updatesForDb.total_amount = expenseUpdates.amount || currentTx.amount;
+        break;
+      }
+    }
+
+    // 5. Kirim data yang sudah bersih dan aman ke Supabase
+    const { error } = await supabase
+      .from('transactions')
+      .update(updatesForDb)
+      .eq('id', transactionId);
+
+    if (error) {
+      toast({ title: 'Error', description: 'Gagal memperbarui transaksi.', variant: 'destructive' });
+      console.error('Error updating transaction:', error);
+      return false;
+    }
+
+    toast({ title: 'Sukses', description: 'Transaksi berhasil diperbarui.' });
+    fetchTransactions();
+    return true;
+  },
+  [supabase, toast, fetchTransactions, transactions]
+);
+
+
+  return <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails }}>{children}</TransactionContext.Provider>;
 };
 
 export const useTransactions = () => {

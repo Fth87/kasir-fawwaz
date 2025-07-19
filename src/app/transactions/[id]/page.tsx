@@ -165,8 +165,8 @@ function ServiceDetails({ tx, qrCodeUrl, sectionTitleClass, valueClass }: { tx: 
       )}
       <div>
         <p className={sectionTitleClass}>Layanan Servis</p>
-        {/* <p className={valueClass}>{tx.serviceName} ({tx.device})</p>
-        <p className="text-sm text-muted-foreground">{tx.issueDescription}</p> */}
+        <p className={valueClass}>{tx.serviceName} ({tx.device})</p>
+        <p className="text-sm text-muted-foreground">{tx.issueDescription}</p>
       </div>
       <Separator />
       <div className="flex justify-between items-center">
