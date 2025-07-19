@@ -8,11 +8,11 @@ import type { Transaction } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ScrollText, Eye, Settings } from 'lucide-react';
+import { ScrollText, Eye, Settings, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function TransactionsPage() {
-  const { transactions } = useTransactions();
+  const { transactions,isLoading } = useTransactions();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
@@ -31,6 +31,14 @@ export default function TransactionsPage() {
     if (tx.type === 'expense') return tx.amount;
     return 0;
   };
+
+    if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -68,7 +76,7 @@ export default function TransactionsPage() {
                     {tx.type === 'expense' ? '-' : '+'}
                     {formatCurrency(getTransactionAmount(tx))}
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
+                  <TableCell className="text-right space-x-2 space-y-2">
                     <Button asChild variant="outline" size="sm">
                       <Link href={`/transactions/${tx.id}`}>
                         <Eye className="mr-1 h-4 w-4" /> View Receipt

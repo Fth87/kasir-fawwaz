@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -7,32 +6,36 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTransactions } from '@/context/transaction-context';
-import { useInventory } from '@/context/inventory-context'; // Import useInventory
+import { useInventory } from '@/context/inventory-context';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// Skema validasi untuk satu item penjualan
 const saleItemSchema = z.object({
-  name: z.string().min(1, "Item name is required"),
-  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
-  pricePerItem: z.coerce.number().min(0, "Price must be non-negative"),
-  inventoryItemId: z.string().optional(), // To link with inventory
+  name: z.string().min(1, 'Nama barang harus diisi'),
+  quantity: z.coerce.number().int().min(1, 'Jumlah minimal 1'),
+  pricePerItem: z.coerce.number().min(0, 'Harga tidak boleh negatif'),
 });
 
+// Skema validasi untuk keseluruhan form penjualan
 const saleFormSchema = z.object({
   customerName: z.string().optional(),
-  items: z.array(saleItemSchema).min(1, "At least one item is required"),
+  items: z.array(saleItemSchema).min(1, 'Minimal ada satu barang dalam transaksi'),
+  paymentMethod: z.enum(['cash', 'transfer', 'qris'], {
+    required_error: 'Metode pembayaran harus dipilih',
+  }),
 });
 
 type SaleFormValues = z.infer<typeof saleFormSchema>;
 
 export default function RecordSalePage() {
   const { addTransaction } = useTransactions();
-  const { inventoryItems, decreaseStock, findItemByName } = useInventory(); // Get inventory functions
+  const { inventoryItems, findItemByName } = useInventory();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -40,151 +43,108 @@ export default function RecordSalePage() {
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),
     defaultValues: {
-      customerName: "",
-      items: [{ name: "", quantity: 1, pricePerItem: 0, inventoryItemId: undefined }],
+      customerName: '',
+      items: [{ name: '', quantity: 1, pricePerItem: 0 }],
+      paymentMethod: 'cash',
     },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "items",
+    name: 'items',
   });
 
+  // Fungsi untuk mengisi harga otomatis saat nama barang diubah
   const handleItemNameChange = (index: number, name: string) => {
     const inventoryItem = findItemByName(name);
     if (inventoryItem) {
-      form.setValue(`items.${index}.pricePerItem`, inventoryItem.sellingPrice);
-      form.setValue(`items.${index}.inventoryItemId`, inventoryItem.id);
-      // Optionally, check stock here and show a warning if low, but allow proceeding.
-      if (inventoryItem.stockQuantity <= (inventoryItem.lowStockThreshold || 0) && inventoryItem.stockQuantity > 0) {
-        toast({
-          title: "Low Stock Warning",
-          description: `Item "${inventoryItem.name}" has low stock (${inventoryItem.stockQuantity}).`,
-          variant: "default",
-        });
-      } else if (inventoryItem.stockQuantity === 0) {
-         toast({
-          title: "Out of Stock",
-          description: `Item "${inventoryItem.name}" is out of stock. Sale can still be recorded.`,
-          variant: "destructive",
-        });
-      }
-    } else {
-      form.setValue(`items.${index}.inventoryItemId`, undefined); // Clear if no match
+      form.setValue(`items.${index}.pricePerItem`, inventoryItem.sellingPrice, { shouldValidate: true });
     }
   };
 
-  const onSubmit = (data: SaleFormValues) => {
+  // Fungsi untuk menangani submit form
+  const onSubmit = async (data: SaleFormValues) => {
     setIsLoading(true);
     try {
-      const saleItemsForTransaction = data.items.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        pricePerItem: item.pricePerItem,
-        inventoryItemId: item.inventoryItemId, // Pass this along
-      }));
-
-      // Record the transaction first
-      const newTransaction = addTransaction({
+      // Panggil addTransaction. Pengurangan stok terjadi otomatis di database via trigger.
+      const success = await addTransaction({
         type: 'sale',
-        customerName: data.customerName,
-        items: saleItemsForTransaction, // Uses the more detailed saleItemsForTransaction
+        customerName: data.customerName || 'Walk-in Customer',
+        paymentMethod: data.paymentMethod,
+        items: data.items,
       });
 
-      // If transaction is successful, then decrease stock
-      if (newTransaction) {
-        data.items.forEach(item => {
-          // Decrease stock uses item.name to find the item in inventory internally
-          // This is fine as decreaseStock in context handles the lookup
-          // No need to pass inventoryItemId directly to decreaseStock if it looks up by name
-          decreaseStock(item.name, item.quantity);
-        });
-
+      if (success) {
         toast({
-          title: "Sale Recorded",
-          description: "The sale has been successfully recorded and stock updated.",
+          title: 'Penjualan Tercatat',
+          description: 'Transaksi berhasil direkam & stok otomatis diperbarui.',
         });
         form.reset();
-        if (newTransaction.id) {
-          router.push(`/transactions/${newTransaction.id}`);
-        }
+        router.push('/transactions');
       } else {
-        // This case should ideally not happen if addTransaction doesn't throw
-        toast({
-          title: "Error",
-          description: "Failed to record sale transaction.",
-          variant: "destructive",
-        });
+        toast({ title: 'Error', description: 'Gagal merekam transaksi.', variant: 'destructive' });
       }
     } catch (error) {
-      console.error("Error recording sale:", error);
-      toast({
-        title: "Error",
-        description: "Failed to record sale. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error saat merekam penjualan:', error);
+      toast({ title: 'Error', description: 'Terjadi kesalahan.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const calculateTotal = (index: number) => {
-    const item = form.watch(`items.${index}`);
-    return (item.quantity || 0) * (item.pricePerItem || 0);
-  };
-  
-  const grandTotal = form.watch('items').reduce((acc, item) => acc + ((item.quantity || 0) * (item.pricePerItem || 0)), 0);
+  const grandTotal = form.watch('items').reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl font-headline flex items-center">
-          <ShoppingCart className="mr-2 h-6 w-6" /> Record Sale
+          <ShoppingCart className="mr-3 h-7 w-7" /> Rekam Transaksi Penjualan
         </CardTitle>
-        <CardDescription>Enter the details of the sale transaction. If item exists in inventory, price will auto-fill.</CardDescription>
+        <CardDescription>Masukkan detail penjualan. Stok barang akan otomatis berkurang setelah transaksi disimpan.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             <FormField
               control={form.control}
               name="customerName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Customer Name (Optional)</FormLabel>
+                  <FormLabel>Nama Pelanggan (Opsional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter customer name" {...field} />
+                    <Input placeholder="cth: Budi" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Bagian Daftar Barang */}
             <div className="space-y-4">
-              <Label className="text-md font-medium">Items</Label>
+              <FormLabel>Barang yang Dijual</FormLabel>
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end p-4 border rounded-md">
+                <div key={field.id} className="grid grid-cols-12 gap-3 items-start p-4 border rounded-lg">
                   <FormField
                     control={form.control}
                     name={`items.${index}.name`}
                     render={({ field: formField }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Item Name</FormLabel>
+                      <FormItem className="col-span-12 md:col-span-5">
+                        <FormLabel className="sr-only">Nama Barang</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., Phone Case (Type to search inventory)"
+                            placeholder="Nama Barang"
                             {...formField}
                             onChange={(e) => {
-                              formField.onChange(e); // Propagate change to react-hook-form
-                              handleItemNameChange(index, e.target.value); // Custom logic
+                              formField.onChange(e);
+                              handleItemNameChange(index, e.target.value);
                             }}
-                            list={`inventory-items-datalist-${index}`}
+                            list="inventory-items-datalist"
                           />
                         </FormControl>
-                        <datalist id={`inventory-items-datalist-${index}`}>
-                            {inventoryItems.map(invItem => (
-                                <option key={invItem.id} value={invItem.name} />
-                            ))}
+                        <datalist id="inventory-items-datalist">
+                          {inventoryItems.map((invItem) => (
+                            <option key={invItem.id} value={invItem.name} />
+                          ))}
                         </datalist>
                         <FormMessage />
                       </FormItem>
@@ -194,10 +154,10 @@ export default function RecordSalePage() {
                     control={form.control}
                     name={`items.${index}.quantity`}
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
+                      <FormItem className="col-span-4 md:col-span-2">
+                        <FormLabel className="sr-only">Jumlah</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="1" {...field} />
+                          <Input type="number" placeholder="Jml" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -207,60 +167,73 @@ export default function RecordSalePage() {
                     control={form.control}
                     name={`items.${index}.pricePerItem`}
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Price/Item (IDR)</FormLabel>
+                      <FormItem className="col-span-8 md:col-span-4">
+                        <FormLabel className="sr-only">Harga/Item</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="50000" {...field} />
+                          <Input type="number" placeholder="Harga" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                   <div className="text-sm md:col-span-3">
-                      Item Total: IDR {calculateTotal(index).toLocaleString('id-ID')}
-                    </div>
                   {fields.length > 1 && (
                     <Button
                       type="button"
-                      variant="destructive"
+                      variant="ghost"
                       size="icon"
                       onClick={() => remove(index)}
-                      className="md:col-span-1 md:justify-self-end h-9 w-9"
-                      aria-label="Remove item"
+                      className="col-span-2 md:col-span-1 justify-self-end text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      aria-label="Hapus item"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
               ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => append({ name: "", quantity: 1, pricePerItem: 0, inventoryItemId: undefined })}
-                className="mt-2"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1, pricePerItem: 0 })} className="mt-2">
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Barang
               </Button>
-            </div>
-             {form.formState.errors.items && !form.formState.errors.items.root && 'message' in form.formState.errors.items && (
-                <p className="text-sm font-medium text-destructive">{(form.formState.errors.items as any).message}</p>
-             )}
-            
-            <div className="text-right text-xl font-bold">
-              Grand Total: IDR {grandTotal.toLocaleString('id-ID')}
+              {form.formState.errors.items?.root && <p className="text-sm font-medium text-destructive">{form.formState.errors.items.root.message}</p>}
             </div>
 
+            <FormField
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Metode Pembayaran</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="cash" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Cash</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="transfer" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Transfer</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="qris" />
+                        </FormControl>
+                        <FormLabel className="font-normal">QRIS</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="text-right text-2xl font-bold pt-4 border-t">Grand Total: IDR {grandTotal.toLocaleString('id-ID')}</div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Recording...
-                </>
-              ) : (
-                "Record Sale"
-              )}
+            <Button type="submit" className="w-full text-lg py-6" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Simpan Transaksi'}
             </Button>
           </CardFooter>
         </form>
