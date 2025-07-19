@@ -13,6 +13,7 @@ interface InventoryContextType {
   updateInventoryItem: (id: string, updates: UpdateInventoryItemInput) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<boolean>;
   findItemByName: (name: string) => InventoryItem | undefined;
+  restockItem: (itemId: string, quantityToAdd: number) => Promise<boolean>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -173,7 +174,46 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     [inventoryItems]
   );
 
-  return <InventoryContext.Provider value={{ inventoryItems, isLoading, addInventoryItem, updateInventoryItem, deleteInventoryItem, findItemByName }}>{children}</InventoryContext.Provider>;
+    const restockItem = useCallback(
+    async (itemId: string, quantityToAdd: number): Promise<boolean> => {
+      // Ambil stok saat ini untuk kalkulasi yang aman
+      const item = inventoryItems.find(i => i.id === itemId);
+      if (!item) {
+        toast({ title: 'Error', description: 'Barang tidak ditemukan.', variant: 'destructive' });
+        return false;
+      }
+
+      const newStockQuantity = item.stockQuantity + quantityToAdd;
+
+      const { data: updatedItem, error } = await supabase
+        .from('inventory_items')
+        .update({
+          stock_quantity: newStockQuantity,
+          last_restocked: new Date().toISOString(), // Perbarui tanggal restock
+        })
+        .eq('id', itemId)
+        .select()
+        .single();
+      
+      if (error || !updatedItem) {
+        toast({ title: 'Error', description: 'Gagal melakukan restock.', variant: 'destructive' });
+        return false;
+      }
+      
+      // Update UI secara optimis
+      setInventoryItems(prev => prev.map(i => i.id === itemId ? {
+        ...i,
+        stockQuantity: updatedItem.stock_quantity,
+        lastRestocked: updatedItem.last_restocked || undefined,
+      } : i));
+
+      toast({ title: 'Sukses', description: `Stok untuk "${item.name}" berhasil ditambahkan.` });
+      return true;
+    },
+    [supabase, toast, inventoryItems]
+  );
+
+  return <InventoryContext.Provider value={{ inventoryItems, isLoading, addInventoryItem, updateInventoryItem, deleteInventoryItem, findItemByName, restockItem }}>{children}</InventoryContext.Provider>;
 };
 
 export const useInventory = () => {
