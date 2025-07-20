@@ -51,8 +51,11 @@ export default function ManageServiceProgressPage() {
   });
 
   useEffect(() => {
-    fetchTransactions(); // Ensure transactions are fetched on mount
-  }, [fetchTransactions]);
+    // Pastikan hanya admin yang mengambil data untuk keamanan tambahan
+    if (currentUser?.role === 'admin') {
+      fetchTransactions();
+    }
+  }, [fetchTransactions, currentUser]);
   
   useEffect(() => {
     if (params.id && !isLoadingTransactions) {

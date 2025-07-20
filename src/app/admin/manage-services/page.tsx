@@ -32,6 +32,13 @@ export default function ManageServicesPage() {
     }
   }, [currentUser, isLoadingAuth, router]);
 
+    useEffect(() => {
+    // Pastikan hanya admin yang mengambil data untuk keamanan tambahan
+    if (currentUser?.role === 'admin') {
+      fetchTransactions();
+    }
+  }, [fetchTransactions, currentUser]);
+
   // 4. Gabungkan state loading dari kedua context
   const isLoading = isLoadingAuth || isLoadingTransactions;
 
@@ -52,9 +59,7 @@ export default function ManageServicesPage() {
       </div>
     );
   }
-useEffect(() => {
-    fetchTransactions(); // Ensure transactions are fetched on mount
-  }, [fetchTransactions]);
+
   return (
     <Card>
       <CardHeader>

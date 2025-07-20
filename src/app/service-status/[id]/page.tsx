@@ -24,6 +24,7 @@ export default function ServiceStatusPage() {
 
   const [service, setService] = useState<ServiceTransaction | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+console.log({isLoading})
 
   useEffect(() => {
     const fetchServiceStatus = async () => {

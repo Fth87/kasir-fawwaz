@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
@@ -28,30 +28,27 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
-
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { getCustomerById, isLoading: isLoadingCustomers } = useCustomers();
   const { transactions: allTransactions, isLoading: isLoadingTransaction, fetchTransactions } = useTransactions();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
-  
+
   const customerId = params.id as string;
   useEffect(() => {
     if (customerId) {
       fetchTransactions(); // Ensure transactions are fetched when customerId changes
     }
   }, [customerId, fetchTransactions]);
-  
+
   // Ambil data pelanggan dari state
   const customer = getCustomerById(customerId);
 
   // Filter transaksi di sisi klien
   const customerTransactions = React.useMemo(() => {
     if (!customerId) return [];
-    return allTransactions
-      .filter(tx => 'customerId' in tx && tx.customerId === customerId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return allTransactions.filter((tx) => 'customerId' in tx && tx.customerId === customerId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [customerId, allTransactions]);
 
   const isLoading = isLoadingCustomers || isLoadingTransaction || isLoadingAuth;
@@ -69,9 +66,9 @@ export default function CustomerDetailPage() {
       </div>
     );
   }
-  
+
   if (!currentUser || currentUser.role !== 'admin') {
-     return (
+    return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <ShieldAlert className="h-12 w-12 text-destructive" />
         <p className="text-muted-foreground">Akses Ditolak. Hanya untuk Admin.</p>
@@ -134,26 +131,26 @@ function CustomerInfoCard({ customer }: { customer: Customer }) {
 }
 
 // Sub-komponen generik untuk menampilkan item informasi
-function InfoItem({ icon: Icon, label, value, className = "" }: { icon: React.ElementType, label: string, value: string, className?: string }) {
-    return (
-        <div className={`flex items-start gap-3 ${className}`}>
-            <Icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
-            <div>
-                <p className="text-sm text-muted-foreground">{label}</p>
-                <p className="font-medium whitespace-pre-wrap">{value}</p>
-            </div>
-        </div>
-    );
+function InfoItem({ icon: Icon, label, value, className = '' }: { icon: React.ElementType; label: string; value: string; className?: string }) {
+  return (
+    <div className={`flex items-start gap-3 ${className}`}>
+      <Icon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="font-medium whitespace-pre-wrap">{value}</p>
+      </div>
+    </div>
+  );
 }
 
 // Sub-komponen untuk riwayat transaksi
-function TransactionHistoryCard({ transactions, customerName }: { transactions: Transaction[], customerName: string }) {
+function TransactionHistoryCard({ transactions, customerName }: { transactions: Transaction[]; customerName: string }) {
   const getTransactionSummary = (tx: Transaction) => {
     if (tx.type === 'sale') return `Penjualan: ${tx.items.length} barang`;
     if (tx.type === 'service') return `Servis: ${tx.serviceName}`;
     return 'Tipe Tidak Dikenal';
   };
-  
+
   return (
     <Card>
       <CardHeader>
@@ -189,9 +186,7 @@ function TransactionHistoryCard({ transactions, customerName }: { transactions: 
                       <p className="font-medium">{getTransactionSummary(tx)}</p>
                       <p className="text-xs text-muted-foreground font-mono">ID: {tx.id.substring(0, 8)}</p>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-green-600">
-                      +{formatCurrency(tx.type === 'sale' ? tx.grandTotal : (tx.type === 'service' ? tx.serviceFee : 0))}
-                    </TableCell>
+                    <TableCell className="text-right font-medium text-green-600">+{formatCurrency(tx.type === 'sale' ? tx.grandTotal : tx.type === 'service' ? tx.serviceFee : 0)}</TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/transactions/${tx.id}`}>
