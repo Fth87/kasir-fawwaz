@@ -11,7 +11,6 @@ import {
   SidebarContent,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
   SidebarInset,
   SidebarFooter,
   SidebarSeparator,

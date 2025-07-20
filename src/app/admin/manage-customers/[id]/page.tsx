@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserCircle, Phone, Mail, MapPin, FileText, ShoppingBag, Wrench, Loader2, ShieldAlert, Eye as ViewIcon } from 'lucide-react';
+import { ArrowLeft, UserCircle, Phone, MapPin, FileText, ShoppingBag, Wrench, Loader2, ShieldAlert, Eye as ViewIcon } from 'lucide-react';
 
 // Date & Formatting
 import { format, parseISO } from 'date-fns';

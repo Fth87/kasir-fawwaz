@@ -1,6 +1,6 @@
 // hooks/useReports.ts
 import { useMemo, useState } from 'react';
-import type { Transaction, MonthlySummary, TransactionTypeFilter } from '@/types';
+import type { Transaction, TransactionTypeFilter } from '@/types';
 import { startOfMonth, endOfMonth, parseISO, isWithinInterval, addDays, subMonths, eachMonthOfInterval, format } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';

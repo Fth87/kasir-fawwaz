@@ -1,5 +1,5 @@
 import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapDbRowToTransaction(tx: any): Transaction | null {
   const commonData = {
     id: tx.id,

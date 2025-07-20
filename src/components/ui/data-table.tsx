@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type PaginationState } from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type PaginationState, type Column } from '@tanstack/react-table';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Filter } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { DateRange } from 'react-day-picker';
@@ -60,7 +60,7 @@ export function DataTable<TData, TValue>({ columns, data, pageCount, fetchData, 
     if (pagination.pageIndex !== 0) {
       setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     }
-  }, [debouncedNameFilter, dateRange]);
+  }, [debouncedNameFilter, dateRange, pagination.pageIndex]);
 
   // Clear filters
   const clearFilters = () => {
@@ -240,7 +240,7 @@ export function DataTable<TData, TValue>({ columns, data, pageCount, fetchData, 
 }
 
 // Helper untuk membuat header kolom yang bisa di-sort - Responsive
-export const createSortableHeader = (column: any, title: string) => {
+export const createSortableHeader = <TData,>(column: Column<TData, unknown>, title: string) => {
   return (
     <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')} className="h-auto p-0 font-medium text-left justify-start hover:bg-transparent">
       <span className="truncate">{title}</span>

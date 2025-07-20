@@ -1,9 +1,16 @@
 "use client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+interface MonthlyData {
+  month: string;
+  sales: number;
+  services: number;
+  expenses: number;
+}
+
 const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
-export function MonthlyBarChart({ data }: { data: any[] }) {
+export function MonthlyBarChart({ data }: { data: MonthlyData[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}> 

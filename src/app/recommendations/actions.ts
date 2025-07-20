@@ -2,7 +2,7 @@
 
 'use server';
 
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { InventoryItem, NewInventoryItemInput, UpdateInventoryItemInput } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -108,7 +108,7 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
 
   const updateInventoryItem = useCallback(
     async (id: string, updates: UpdateInventoryItemInput): Promise<boolean> => {
-      const updatesForDb: { [key: string]: any } = {};
+      const updatesForDb: { [key: string]: string | number | undefined } = {};
       if (updates.name) updatesForDb.name = updates.name;
       if (updates.sku) updatesForDb.sku = updates.sku;
       if (updates.stockQuantity !== undefined) updatesForDb.stock_quantity = updates.stockQuantity;
