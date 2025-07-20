@@ -3,7 +3,15 @@ import { DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
-export function PeriodRecap({ recap }: { recap: any }) {
+interface RecapData {
+  totalRevenue: number;
+  totalSales: number;
+  totalServices: number;
+  totalExpenses: number;
+  profit: number;
+}
+
+export function PeriodRecap({ recap }: { recap: RecapData }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <RecapCard title="Total Pendapatan" value={recap.totalRevenue} icon={DollarSign} />
@@ -24,7 +32,12 @@ export function PeriodRecap({ recap }: { recap: any }) {
   );
 }
 
-function RecapCard({ title, value, icon: Icon, iconColor = "text-muted-foreground" }: any) {
+function RecapCard({ title, value, icon: Icon, iconColor = "text-muted-foreground" }: {
+  title: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor?: string;
+}) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

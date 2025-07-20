@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useTransition } from 'react'; 
+import React, { useTransition } from 'react'; 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useTransactions } from '@/context/transaction-context';
 import { useEffect } from 'react';
 
-import { AppUser, useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
 
 // Types
 import type { Transaction } from '@/types';
@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ListOrdered, Eye, Edit3, Trash2, Loader2, ShieldAlert, Settings } from 'lucide-react';
+import { ListOrdered, Eye, Edit3, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 const formatCurrency = (amount: number) => {

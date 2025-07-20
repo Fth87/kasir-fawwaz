@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ShoppingCart, Wrench, BadgeDollarSign, ScrollText, Lightbulb, ArrowRight } from 'lucide-react';
 import { useTransactions } from '@/context/transaction-context';
-import type { Transaction } from '@/types';
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {

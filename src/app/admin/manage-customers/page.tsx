@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, use } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,15 +9,15 @@ import { useCustomers } from '@/context/customer-context';
 import type { Customer } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Users2, PlusCircle, Edit3, Trash2, Loader2, ShieldAlert, Eye, EyeIcon } from 'lucide-react';
+import { Users2, PlusCircle, Edit3, Trash2, Loader2, ShieldAlert, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
@@ -71,7 +71,7 @@ export default function ManageCustomersPage() {
     if (currentUser?.role === 'admin') {
       fetchCustomers();
     }
-  }, [fetchCustomers]);
+  }, [currentUser?.role, fetchCustomers]);
 
   const handleOpenDialog = (customer?: Customer) => {
     setEditingCustomer(customer || null);

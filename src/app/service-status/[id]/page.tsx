@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
 // Tipe Data & Utils
-import type { ServiceTransaction, ProgressNote } from '@/types';
+import type { ServiceTransaction } from '@/types';
 import { getServiceStatusLabel } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction'; // Pastikan path utilitas ini benar
@@ -15,7 +15,6 @@ import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction'; // Pastik
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Timeline, TimelineItem, TimelineConnector, TimelineHeader, TimelineIcon, TimelineTitle, TimelineBody } from '@/components/ui/timeline'; // Asumsi Anda punya komponen ini
 import { Loader2, ArrowLeft, Smartphone, CheckCircle, Clock, CircleSlash, Info, MessageSquare } from 'lucide-react';
 
 export default function ServiceStatusPage() {

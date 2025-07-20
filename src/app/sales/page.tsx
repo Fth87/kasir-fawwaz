@@ -38,9 +38,9 @@ const saleFormSchema = z.object({
 type SaleFormValues = z.infer<typeof saleFormSchema>;
 
 export default function RecordSalePage() {
-  const { customers, isLoading: isLoadingCustomers } = useCustomers();
+  const {  isLoading: isLoadingCustomers } = useCustomers();
   const { addTransaction } = useTransactions();
-  const { inventoryItems, findItemByName, isLoading: isLoadingInventory } = useInventory();
+  const {  isLoading: isLoadingInventory } = useInventory();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -60,12 +60,12 @@ export default function RecordSalePage() {
   });
 
   // Fungsi untuk mengisi harga otomatis saat nama barang diubah
-  const handleItemNameChange = (index: number, name: string) => {
-    const inventoryItem = findItemByName(name);
-    if (inventoryItem) {
-      form.setValue(`items.${index}.pricePerItem`, inventoryItem.sellingPrice, { shouldValidate: true });
-    }
-  };
+  // const handleItemNameChange = (index: number, name: string) => {
+  //   const inventoryItem = findItemByName(name);
+  //   if (inventoryItem) {
+  //     form.setValue(`items.${index}.pricePerItem`, inventoryItem.sellingPrice, { shouldValidate: true });
+  //   }
+  // };
 
   // Fungsi untuk menangani submit form
   const onSubmit = async (data: SaleFormValues) => {

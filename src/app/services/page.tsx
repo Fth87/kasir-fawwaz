@@ -36,7 +36,7 @@ type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 export default function RecordServicePage() {
   const { addTransaction } = useTransactions();
-  const { customers, isLoading: isLoadingCustomers } = useCustomers();
+  const { isLoading: isLoadingCustomers } = useCustomers();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);

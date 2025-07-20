@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,14 +11,14 @@ import { id as LocaleID } from 'date-fns/locale';
 // Konteks & Tipe Data
 import { useInventory } from '@/context/inventory-context';
 import { useAuth } from '@/context/auth-context';
-import type { InventoryItem, NewInventoryItemInput, UpdateInventoryItemInput } from '@/types';
+import type { InventoryItem} from '@/types';
 
 // Komponen UI
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { PackageSearch, PackagePlus, Edit3, Trash2, Loader2, ShieldAlert } from 'lucide-react';
@@ -48,7 +48,7 @@ export default function ManageInventoryPage() {
 
   // State untuk memicu refresh data di tabel
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const triggerRefresh = () => setRefreshTrigger((c) => c + 1);
+  const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
 
   // Definisi kolom dipindahkan ke sini agar bisa mengakses fungsi triggerRefresh
   const columns: ColumnDef<InventoryItem>[] = React.useMemo(
@@ -106,7 +106,14 @@ export default function ManageInventoryPage() {
 }
 
 // --- Definisi Kolom untuk DataTable ---
-const getColumns = ({ onSuccess, addInventoryItem, updateInventoryItem, deleteInventoryItem }: any): ColumnDef<InventoryItem>[] => [
+interface GetColumnsProps {
+  onSuccess: () => void;
+  addInventoryItem: (data: InventoryFormValues) => Promise<boolean>;
+  updateInventoryItem: (id: string, data: InventoryFormValues) => Promise<boolean>;
+  deleteInventoryItem: (id: string) => Promise<boolean>;
+}
+
+const getColumns = ({ onSuccess, addInventoryItem, updateInventoryItem, deleteInventoryItem }: GetColumnsProps): ColumnDef<InventoryItem>[] => [
   {
     accessorKey: 'name',
     header: ({ column }) => createSortableHeader(column, 'Nama Barang'),
@@ -148,10 +155,18 @@ const getColumns = ({ onSuccess, addInventoryItem, updateInventoryItem, deleteIn
 ];
 
 // --- Sub-komponen untuk Dialog Add/Edit ---
-function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInventoryItem }: any) {
+interface ItemDialogProps {
+  children: React.ReactNode;
+  item?: InventoryItem;
+  onSuccess: () => void;
+  addInventoryItem: (data: InventoryFormValues) => Promise<boolean>;
+  updateInventoryItem: (id: string, data: InventoryFormValues) => Promise<boolean>;
+}
+
+function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInventoryItem }: ItemDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const defaultValues = { name: '', sku: '', stockQuantity: 0, purchasePrice: 0, sellingPrice: 0, lowStockThreshold: 10 };
+  const defaultValues = React.useMemo(() => ({ name: '', sku: '', stockQuantity: 0, purchasePrice: 0, sellingPrice: 0, lowStockThreshold: 10 }), []);
 
   const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventoryItemSchema),
@@ -160,7 +175,7 @@ function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInvento
 
   useEffect(() => {
     form.reset(item || defaultValues);
-  }, [item, open, form]);
+  }, [item, open, form, defaultValues]);
 
   const onSubmit = (data: InventoryFormValues) => {
     startTransition(async () => {
@@ -279,7 +294,13 @@ function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInvento
 }
 
 // --- Sub-komponen untuk AlertDialog Delete ---
-function DeleteDialog({ item, onSuccess, deleteInventoryItem }: any) {
+interface DeleteDialogProps {
+  item: InventoryItem;
+  onSuccess: () => void;
+  deleteInventoryItem: (id: string) => Promise<boolean>;
+}
+
+function DeleteDialog({ item, onSuccess, deleteInventoryItem }: DeleteDialogProps) {
   const [isPending, startTransition] = useTransition();
   const handleDelete = () => {
     startTransition(async () => {

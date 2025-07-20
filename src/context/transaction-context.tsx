@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
@@ -43,10 +43,6 @@ interface TransactionContextType {
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
   getTransactionsByCustomerId: (customerId: string) => Transaction[];
-  getCustomerTransactions: (customerId: string) => {
-    transactions: Transaction[];
-    isLoading: boolean;
-  };
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -176,7 +172,21 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Objek kosong untuk menampung data yang akan dikirim ke Supabase
-      const updatesForDb: { [key: string]: any } = {};
+      const updatesForDb: {
+        customer_name?: string;
+        total_amount?: number;
+        details?: {
+          paymentMethod?: string;
+          items?: SaleTransaction['items'];
+          serviceName?: string;
+          device?: string;
+          issueDescription?: string;
+          status?: string;
+          progressNotes?: ServiceTransaction['progressNotes'];
+          description?: string;
+          category?: string;
+        };
+      } = {};
 
       // 2. Gunakan switch pada TIPE ASLI untuk type narrowing yang aman
       switch (currentTx.type) {
@@ -262,41 +272,9 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     },
     [transactions]
   );
-  const getCustomerTransactions = (customerId: string) => {
-    const [customerTransactions, setCustomerTransactions] = useState<Transaction[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-      if (!customerId) {
-        setIsLoading(false);
-        return;
-      }
-
-      const fetchCustomerTxs = async () => {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('transactions')
-          .select('*')
-          .eq('customer_id', customerId) // <-- Filter utama di sini
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          toast({ title: 'Error', description: 'Gagal memuat riwayat transaksi pelanggan.', variant: 'destructive' });
-          setCustomerTransactions([]);
-        } else {
-          const formattedTransactions = data.map(mapDbRowToTransaction).filter(Boolean) as Transaction[];
-          setCustomerTransactions(formattedTransactions);
-        }
-        setIsLoading(false);
-      };
-
-      fetchCustomerTxs();
-    }, [customerId]); // Jalankan setiap kali customerId berubah
-
-    return { transactions: customerTransactions, isLoading };
-  };
   return (
-    <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, getCustomerTransactions, fetchTransactions }}>
+    <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, fetchTransactions }}>
       {children}
     </TransactionContext.Provider>
   );

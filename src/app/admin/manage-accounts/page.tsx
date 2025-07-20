@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { UserRoles } from '@/types';
-import { Users, PlusCircle, Loader2, ShieldAlert, Edit3, Trash2 } from 'lucide-react';
+import { Users, PlusCircle, Loader2, ShieldAlert, Trash2 } from 'lucide-react';
 
 // Import Server Actions dan tipe data
 import { getUsers, createNewUser, deleteUser, type UserData } from './actions';

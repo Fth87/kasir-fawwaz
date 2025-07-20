@@ -16,7 +16,7 @@ import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, E
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Settings, Building, Loader2, Phone, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, Printer, Settings, Building, Loader2} from 'lucide-react';
 
 // Helper Function
 const formatCurrency = (amount: number) => {

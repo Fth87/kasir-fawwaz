@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Customer, NewCustomerInput, UpdateCustomerInput } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';

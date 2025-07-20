@@ -1,12 +1,12 @@
 'use client';
 
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useTransactions } from '@/context/transaction-context';
-import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction, SaleItem } from '@/types';
+import type { Transaction, SaleItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +73,7 @@ export default function EditTransactionPage() {
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'items' as any, // Type assertion needed for discriminated union
+    name: 'items', // Type assertion needed for discriminated union
   });
 
   useEffect(() => {
@@ -181,14 +181,14 @@ export default function EditTransactionPage() {
   }
 
   const calculateSaleItemTotal = (itemIndex: number) => {
-    const items = form.watch('items' as any) as SaleItem[] | undefined;
+    const items = form.watch('items') as SaleItem[] | undefined;
     if (!items || !items[itemIndex]) return 0;
     const item = items[itemIndex];
     return (item.quantity || 0) * (item.pricePerItem || 0);
   };
 
   const calculateSaleGrandTotal = () => {
-    const items = form.watch('items' as any) as SaleItem[] | undefined;
+    const items = form.watch('items') as SaleItem[] | undefined;
     if (!items) return 0;
     return items.reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
   };
@@ -216,7 +216,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Customer Name (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter customer name" {...(field as any)} />
+                        <Input placeholder="Enter customer name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -228,7 +228,7 @@ export default function EditTransactionPage() {
                   <div key={item.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start p-4 border rounded-md relative">
                     <FormField
                       control={form.control}
-                      name={`items.${index}.name` as any}
+                      name={`items.${index}.name`}
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
                           <FormLabel>Item Name</FormLabel>
@@ -241,7 +241,7 @@ export default function EditTransactionPage() {
                     />
                     <FormField
                       control={form.control}
-                      name={`items.${index}.quantity` as any}
+                      name={`items.${index}.quantity`}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Quantity</FormLabel>
@@ -254,7 +254,7 @@ export default function EditTransactionPage() {
                     />
                     <FormField
                       control={form.control}
-                      name={`items.${index}.pricePerItem` as any}
+                      name={`items.${index}.pricePerItem`}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Price/Item (IDR)</FormLabel>
@@ -277,7 +277,7 @@ export default function EditTransactionPage() {
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                 </Button>
                 {'items' in form.formState.errors && form.formState.errors.items && typeof form.formState.errors.items === 'object' && 'message' in form.formState.errors.items && (
-                  <p className="text-sm font-medium text-destructive">{(form.formState.errors.items as any).message}</p>
+                  <p className="text-sm font-medium text-destructive">{(form.formState.errors.items).message}</p>
                 )}
                 <div className="text-right text-lg font-bold">Grand Total: IDR {calculateSaleGrandTotal().toLocaleString('id-ID')}</div>
               </>
@@ -292,7 +292,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Service Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Screen Replacement" {...(field as any)} />
+                        <Input placeholder="e.g., Screen Replacement" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -305,7 +305,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Customer Name (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter customer name" {...(field as any)} />
+                        <Input placeholder="Enter customer name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -318,7 +318,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Customer Phone (Optional)</FormLabel>
                       <FormControl>
-                        <Input type="tel" placeholder="e.g., 08123456789" {...(field as any)} />
+                        <Input type="tel" placeholder="e.g., 08123456789" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -331,7 +331,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Customer Address (Optional)</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Enter customer address" {...(field as any)} />
+                        <Textarea placeholder="Enter customer address" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -344,7 +344,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Service Fee (IDR)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="150000" {...(field as any)} />
+                        <Input type="number" placeholder="150000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -362,7 +362,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="e.g., Electricity Bill" {...(field as any)} />
+                        <Textarea placeholder="e.g., Electricity Bill" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -375,7 +375,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Category (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Utilities" {...(field as any)} />
+                        <Input placeholder="e.g., Utilities" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -388,7 +388,7 @@ export default function EditTransactionPage() {
                     <FormItem>
                       <FormLabel>Amount (IDR)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="100000" {...(field as any)} />
+                        <Input type="number" placeholder="100000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
