@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { ShoppingCart, Wrench, BadgeDollarSign, ScrollText, Lightbulb, ArrowRight } from 'lucide-react';
 import { useTransactions } from '@/context/transaction-context';
 import type { Transaction } from '@/types';
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
-  const { transactions } = useTransactions();
+  const { transactions,fetchTransactions } = useTransactions();
   const [summary, setSummary] = useState({
     totalSales: 0,
     totalServices: 0,
@@ -17,6 +17,10 @@ export default function DashboardPage() {
     transactionCount: 0,
   });
   const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   useEffect(() => {
     setIsClient(true);

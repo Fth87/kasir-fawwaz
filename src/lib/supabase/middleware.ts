@@ -32,19 +32,24 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // --- LOGIKA PROTEKSI RUTE (TETAP SAMA, SUDAH BENAR) ---
+  // 1. Pisahkan antara halaman publik dan halaman khusus non-login
+  const publicPaths = ['/service-status']; // Boleh diakses siapa saja (login/tidak)
+  const authRoutes = ['/login', '/auth/callback']; // Hanya untuk yang BELUM login
 
-  const publicPaths = ['/login', '/auth/callback']
+  const isPublic = publicPaths.some(p => pathname.startsWith(p));
+  const isAuthRoute = authRoutes.some(p => pathname.startsWith(p));
 
-  // Jika user belum login dan mencoba mengakses halaman yang dilindungi
-  if (!user && !publicPaths.some(p => pathname.startsWith(p))) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // 2. Jika user sudah login dan mencoba mengakses halaman login/register, alihkan
+  if (user && isAuthRoute) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Jika user sudah login dan mencoba mengakses halaman login/auth
-  if (user && publicPaths.some(p => pathname.startsWith(p))) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // 3. Jika user belum login DAN mencoba mengakses halaman yang dilindungi
+  //    (bukan halaman publik dan bukan halaman auth), alihkan ke login
+  if (!user && !isPublic && !isAuthRoute) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
+
 
   return supabaseResponse
 }

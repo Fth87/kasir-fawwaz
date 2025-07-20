@@ -1,6 +1,6 @@
 "use client";
 
-import React,  { useEffect, useState, useTransition } from 'react';
+import React,  { use, useEffect, useState, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -36,7 +36,7 @@ export default function ManageServiceProgressPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { getTransactionById, updateTransactionDetails, isLoading: isLoadingTransactions } = useTransactions();
+  const { getTransactionById, updateTransactionDetails, isLoading: isLoadingTransactions, fetchTransactions } = useTransactions();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   
   const [isPending, startTransition] = useTransition();
@@ -49,6 +49,10 @@ export default function ManageServiceProgressPage() {
       newNote: '',
     },
   });
+
+  useEffect(() => {
+    fetchTransactions(); // Ensure transactions are fetched on mount
+  }, [fetchTransactions]);
   
   useEffect(() => {
     if (params.id && !isLoadingTransactions) {

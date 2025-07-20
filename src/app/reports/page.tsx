@@ -13,7 +13,11 @@ import { TransactionDetailTable } from './components/TransactionDetailTable';
 
 
 export default function ReportsPage() {
-  const { transactions, isLoading } = useTransactions();
+  const { transactions, isLoading, fetchTransactions } = useTransactions();
+  // Fetch transactions on mount
+  React.useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
   const {
     dateRange,
     setDateRange,

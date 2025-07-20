@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 
 export default function ManageServicesPage() {
   // 1. Ambil isLoading dari kedua context
-  const { transactions, isLoading: isLoadingTransactions } = useTransactions();
+  const { transactions, isLoading: isLoadingTransactions, fetchTransactions } = useTransactions();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   const router = useRouter();
 
@@ -35,6 +35,7 @@ export default function ManageServicesPage() {
   // 4. Gabungkan state loading dari kedua context
   const isLoading = isLoadingAuth || isLoadingTransactions;
 
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -51,7 +52,9 @@ export default function ManageServicesPage() {
       </div>
     );
   }
-
+useEffect(() => {
+    fetchTransactions(); // Ensure transactions are fetched on mount
+  }, [fetchTransactions]);
   return (
     <Card>
       <CardHeader>

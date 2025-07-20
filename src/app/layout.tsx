@@ -1,5 +1,4 @@
 
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
@@ -8,7 +7,7 @@ import { AuthProvider } from '@/context/auth-context';
 import { InventoryProvider } from '@/context/inventory-context';
 import { CustomerProvider } from '@/context/customer-context';
 import { SettingsProvider } from '@/context/settings-context'; // Import SettingsProvider
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Kasir Konter',
@@ -29,11 +28,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <SettingsProvider> 
+          <SettingsProvider>
             <InventoryProvider>
               <CustomerProvider>
                 <TransactionProvider>
-                  <AppLayout>{children}</AppLayout>
+                  <AppLayout>
+                    {children}
+                  </AppLayout>
                   <Toaster />
                 </TransactionProvider>
               </CustomerProvider>
