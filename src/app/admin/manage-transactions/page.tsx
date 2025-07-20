@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useTransition } from 'react'; 
+import React, { use, useTransition } from 'react'; 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -42,11 +42,15 @@ const getTransactionAmount = (tx: Transaction) => {
 
 export default function ManageTransactionsPage() {
   // Ambil isLoading dari context untuk menampilkan status loading
-  const { transactions, isLoading, deleteTransaction } = useTransactions();
+  const { transactions, isLoading, deleteTransaction, fetchTransactions } = useTransactions();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    // Ambil data transaksi saat komponen dimuat
+    fetchTransactions();
+  }, [fetchTransactions]);
   // Proteksi rute bisa lebih sederhana
   useEffect(() => {
     if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {

@@ -1,6 +1,4 @@
-// components/inventory/RestockDialog.tsx
-
-"use client";
+'use client';
 
 import React, { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,17 +13,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Plus, Loader2 } from 'lucide-react';
 
-// Skema validasi untuk form restock
 const restockSchema = z.object({
-  quantityToAdd: z.coerce.number().int().min(1, "Jumlah harus minimal 1"),
+  quantityToAdd: z.coerce.number().int().min(1, 'Jumlah harus minimal 1'),
 });
 type RestockFormValues = z.infer<typeof restockSchema>;
 
 interface RestockDialogProps {
   item: InventoryItem;
+  onSuccess: () => void; // Callback untuk refresh
 }
 
-export function RestockDialog({ item }: RestockDialogProps) {
+export function RestockDialog({ item, onSuccess }: RestockDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { restockItem } = useInventory();
@@ -41,6 +39,7 @@ export function RestockDialog({ item }: RestockDialogProps) {
       if (success) {
         setOpen(false);
         form.reset();
+        onSuccess(); // Panggil refresh
       }
     });
   };
@@ -49,15 +48,14 @@ export function RestockDialog({ item }: RestockDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Plus className="mr-1 h-4 w-4" /> Restock
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Restock Barang</DialogTitle>
           <DialogDescription>
-            Tambah jumlah stok untuk <span className="font-semibold">{item.name}</span>.
-            Stok saat ini: {item.stockQuantity}.
+            Tambah jumlah stok untuk <span className="font-semibold">{item.name}</span>. Stok saat ini: {item.stockQuantity}.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -76,7 +74,9 @@ export function RestockDialog({ item }: RestockDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Batal
+              </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tambah Stok

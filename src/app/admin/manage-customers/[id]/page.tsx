@@ -33,10 +33,15 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { getCustomerById, isLoading: isLoadingCustomers } = useCustomers();
-  const { transactions: allTransactions, isLoading: isLoadingTransactions } = useTransactions();
+  const { transactions: allTransactions, isLoading: isLoadingTransaction, fetchTransactions } = useTransactions();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   
   const customerId = params.id as string;
+  useEffect(() => {
+    if (customerId) {
+      fetchTransactions(); // Ensure transactions are fetched when customerId changes
+    }
+  }, [customerId, fetchTransactions]);
   
   // Ambil data pelanggan dari state
   const customer = getCustomerById(customerId);
@@ -49,8 +54,8 @@ export default function CustomerDetailPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [customerId, allTransactions]);
 
-  const isLoading = isLoadingCustomers || isLoadingTransactions || isLoadingAuth;
-  
+  const isLoading = isLoadingCustomers || isLoadingTransaction || isLoadingAuth;
+
   useEffect(() => {
     if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
       router.replace('/');

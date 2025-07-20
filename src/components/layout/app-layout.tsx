@@ -67,7 +67,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     return <Loading />;
   }
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname.startsWith('/service-status')) {
     if (!user) {
       return <>{children}</>;
     }

@@ -5,11 +5,15 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import type { InventoryItem, NewInventoryItemInput, UpdateInventoryItemInput } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
+import { DateRange } from 'react-day-picker';
 
 interface InventoryContextType {
   inventoryItems: InventoryItem[];
   isLoading: boolean;
-  addInventoryItem: (itemData: NewInventoryItemInput) => Promise<InventoryItem | null>;
+  pageCount: number;
+  fetchData: (pagination: PaginationState, sorting: SortingState, filters: { name?: string; dateRange?: DateRange }) => void;
+  addInventoryItem: (itemData: NewInventoryItemInput) => Promise<boolean>;
   updateInventoryItem: (id: string, updates: UpdateInventoryItemInput) => Promise<boolean>;
   deleteInventoryItem: (id: string) => Promise<boolean>;
   findItemByName: (name: string) => InventoryItem | undefined;
@@ -23,95 +27,84 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pageCount, setPageCount] = useState(0);
 
-  const fetchInventoryItems = useCallback(async () => {
-    const { data, error } = await supabase.from('inventory_items').select('*').order('name', { ascending: true });
+  const fetchData = useCallback(
+    async (pagination: PaginationState, sorting: SortingState, filters: { name?: string; dateRange?: DateRange }) => {
+      setIsLoading(true);
 
-    if (error) {
-      toast({ title: 'Error', description: 'Gagal memuat data inventaris.', variant: 'destructive' });
-      setInventoryItems([]);
-    } else {
-      const formattedItems = data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        sku: item.sku || undefined,
-        stockQuantity: item.stock_quantity,
-        purchasePrice: item.purchase_price || 0,
-        sellingPrice: item.selling_price,
-        lowStockThreshold: item.low_stock_threshold || undefined,
-        lastRestocked: item.last_restocked || undefined,
-      }));
-      setInventoryItems(formattedItems);
-    }
-    setIsLoading(false);
-  }, [supabase, toast]);
+      const { pageIndex, pageSize } = pagination;
+      const from = pageIndex * pageSize;
+      const to = from + pageSize - 1;
 
-  useEffect(() => {
-    fetchInventoryItems();
-  }, [fetchInventoryItems]);
+      let query = supabase.from('inventory_items').select('*', { count: 'exact' }).range(from, to);
 
- const addInventoryItem = useCallback(
-  async (itemData: NewInventoryItemInput): Promise<InventoryItem | null> => {
-    // 1. Validasi duplikat nama dan SKU langsung ke database
-    const orQuery = [`name.eq.${itemData.name}`];
-    // Hanya tambahkan pengecekan SKU jika SKU diisi
-    if (itemData.sku && itemData.sku.trim() !== '') {
-      orQuery.push(`sku.eq.${itemData.sku}`);
-    }
-    const { data: existingItems } = await supabase
-      .from('inventory_items')
-      .select('name, sku')
-      .or(orQuery.join(','));
+      if (filters.name) {
+        query = query.ilike('name', `%${filters.name}%`);
+      }
 
-    if (existingItems && existingItems.length > 0) {
-      toast({ title: 'Error', description: 'Nama atau SKU barang sudah ada.', variant: 'destructive' });
-      return null;
-    }
+      if (sorting.length > 0) {
+        const sort = sorting[0];
+        query = query.order(sort.id, { ascending: !sort.desc });
+      } else {
+        query = query.order('name', { ascending: true });
+      }
 
-    // 2. Masukkan data baru dan minta data yang baru dibuat kembali
-    const { data: newItemData, error: insertError } = await supabase
-      .from('inventory_items')
-      .insert({
-        name: itemData.name,
-        sku: itemData.sku,
-        stock_quantity: itemData.stockQuantity,
-        purchase_price: itemData.purchasePrice,
-        selling_price: itemData.sellingPrice,
-        low_stock_threshold: itemData.lowStockThreshold,
-      })
-      .select()
-      .single();
+      if (filters.dateRange?.from && filters.dateRange?.to) {
+        // 'created_at' adalah kolom tanggal di tabel Anda
+        query = query.gte('created_at', filters.dateRange.from.toISOString());
+        query = query.lte('created_at', filters.dateRange.to.toISOString());
+      }
 
-    if (insertError || !newItemData) {
-      toast({ title: 'Error', description: 'Gagal menambahkan barang baru.', variant: 'destructive' });
-      console.error("Insert Error:", insertError);
-      return null;
-    }
-    
-    // 3. Format data dari database agar sesuai dengan tipe 'InventoryItem' di aplikasi
-    const formattedItem: InventoryItem = {
-      id: newItemData.id,
-      name: newItemData.name,
-      sku: newItemData.sku || undefined,
-      stockQuantity: newItemData.stock_quantity,
-      purchasePrice: newItemData.purchase_price || 0,
-      sellingPrice: newItemData.selling_price,
-      lowStockThreshold: newItemData.low_stock_threshold || undefined,
-      lastRestocked: newItemData.last_restocked || undefined,
-    };
-    
-    // 4. Update state lokal secara optimis (tanpa perlu fetch ulang)
-    setInventoryItems(prev => 
-      [...prev, formattedItem].sort((a, b) => a.name.localeCompare(b.name))
-    );
-    
-    toast({ title: 'Sukses', description: `Barang "${formattedItem.name}" berhasil ditambahkan.` });
-    
-    // 5. Kembalikan objek barang baru agar bisa langsung digunakan
-    return formattedItem;
-  },
-  [supabase, toast]
-);
+      const { data, error, count } = await query;
+
+      if (error) {
+        toast({ title: 'Error', description: 'Gagal memuat data inventaris.', variant: 'destructive' });
+        setInventoryItems([]);
+      } else if (data) {
+        const formattedItems = data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          sku: item.sku || undefined,
+          stockQuantity: item.stock_quantity,
+          purchasePrice: item.purchase_price || 0,
+          sellingPrice: item.selling_price,
+          lowStockThreshold: item.low_stock_threshold || undefined,
+          lastRestocked: item.last_restocked || undefined,
+        }));
+        setInventoryItems(formattedItems);
+        setPageCount(Math.ceil((count ?? 0) / pageSize));
+      }
+      setIsLoading(false);
+    },
+    [supabase, toast]
+  );
+
+  const addInventoryItem = useCallback(
+    async (itemData: NewInventoryItemInput): Promise<boolean> => {
+      const { data: newItem, error: insertError } = await supabase
+        .from('inventory_items')
+        .insert({
+          name: itemData.name,
+          sku: itemData.sku,
+          stock_quantity: itemData.stockQuantity,
+          purchase_price: itemData.purchasePrice,
+          selling_price: itemData.sellingPrice,
+          low_stock_threshold: itemData.lowStockThreshold,
+        })
+        .select()
+        .single();
+
+      if (insertError || !newItem) {
+        toast({ title: 'Error', description: insertError?.message || 'Gagal menambahkan barang baru.', variant: 'destructive' });
+        return false;
+      }
+
+      toast({ title: 'Sukses', description: `Barang "${itemData.name}" berhasil ditambahkan.` });
+      return true;
+    },
+    [supabase, toast]
+  );
 
   const updateInventoryItem = useCallback(
     async (id: string, updates: UpdateInventoryItemInput): Promise<boolean> => {
@@ -123,29 +116,12 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
       if (updates.sellingPrice !== undefined) updatesForDb.selling_price = updates.sellingPrice;
       if (updates.lowStockThreshold !== undefined) updatesForDb.low_stock_threshold = updates.lowStockThreshold;
 
-      const { data: updatedItem, error } = await supabase.from('inventory_items').update(updatesForDb).eq('id', id).select().single();
+      const { error } = await supabase.from('inventory_items').update(updatesForDb).eq('id', id);
 
-      if (error || !updatedItem) {
-        toast({ title: 'Error', description: 'Gagal memperbarui barang.', variant: 'destructive' });
+      if (error) {
+        toast({ title: 'Error', description: error.message || 'Gagal memperbarui barang.', variant: 'destructive' });
         return false;
       }
-
-      setInventoryItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                id: updatedItem.id,
-                name: updatedItem.name,
-                sku: updatedItem.sku || undefined,
-                stockQuantity: updatedItem.stock_quantity,
-                purchasePrice: updatedItem.purchase_price || 0,
-                sellingPrice: updatedItem.selling_price,
-                lowStockThreshold: updatedItem.low_stock_threshold || undefined,
-                lastRestocked: updatedItem.last_restocked || undefined,
-              }
-            : item
-        )
-      );
 
       toast({ title: 'Sukses', description: 'Barang berhasil diperbarui.' });
       return true;
@@ -161,7 +137,6 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       toast({ title: 'Sukses', description: 'Barang berhasil dihapus.' });
-      setInventoryItems((prev) => prev.filter((item) => item.id !== id));
       return true;
     },
     [supabase, toast]
@@ -174,10 +149,9 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
     [inventoryItems]
   );
 
-    const restockItem = useCallback(
+  const restockItem = useCallback(
     async (itemId: string, quantityToAdd: number): Promise<boolean> => {
-      // Ambil stok saat ini untuk kalkulasi yang aman
-      const item = inventoryItems.find(i => i.id === itemId);
+      const item = inventoryItems.find((i) => i.id === itemId);
       if (!item) {
         toast({ title: 'Error', description: 'Barang tidak ditemukan.', variant: 'destructive' });
         return false;
@@ -185,35 +159,27 @@ export const InventoryProvider = ({ children }: { children: ReactNode }) => {
 
       const newStockQuantity = item.stockQuantity + quantityToAdd;
 
-      const { data: updatedItem, error } = await supabase
+      const { error } = await supabase
         .from('inventory_items')
         .update({
           stock_quantity: newStockQuantity,
-          last_restocked: new Date().toISOString(), // Perbarui tanggal restock
+          last_restocked: new Date().toISOString(),
         })
-        .eq('id', itemId)
-        .select()
-        .single();
-      
-      if (error || !updatedItem) {
+        .eq('id', itemId);
+
+      if (error) {
         toast({ title: 'Error', description: 'Gagal melakukan restock.', variant: 'destructive' });
         return false;
       }
-      
-      // Update UI secara optimis
-      setInventoryItems(prev => prev.map(i => i.id === itemId ? {
-        ...i,
-        stockQuantity: updatedItem.stock_quantity,
-        lastRestocked: updatedItem.last_restocked || undefined,
-      } : i));
 
       toast({ title: 'Sukses', description: `Stok untuk "${item.name}" berhasil ditambahkan.` });
+      // Tidak perlu fetch ulang, biarkan tabel yang memicu refresh
       return true;
     },
     [supabase, toast, inventoryItems]
   );
 
-  return <InventoryContext.Provider value={{ inventoryItems, isLoading, addInventoryItem, updateInventoryItem, deleteInventoryItem, findItemByName, restockItem }}>{children}</InventoryContext.Provider>;
+  return <InventoryContext.Provider value={{ inventoryItems, isLoading, pageCount, fetchData, addInventoryItem, updateInventoryItem, deleteInventoryItem, findItemByName, restockItem }}>{children}</InventoryContext.Provider>;
 };
 
 export const useInventory = () => {

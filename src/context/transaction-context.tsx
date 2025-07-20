@@ -38,6 +38,7 @@ interface TransactionContextType {
   transactions: Transaction[];
   isLoading: boolean;
   addTransaction: (transactionData: AddTransactionInput) => Promise<boolean>;
+  fetchTransactions: () => void; 
   getTransactionById: (id: string) => Transaction | undefined;
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
@@ -72,9 +73,6 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, [supabase, toast]);
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
 
   const addTransaction = useCallback(
     async (transactionData: AddTransactionInput): Promise<boolean> => {
@@ -298,7 +296,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     return { transactions: customerTransactions, isLoading };
   };
   return (
-    <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, getCustomerTransactions }}>
+    <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, getCustomerTransactions, fetchTransactions }}>
       {children}
     </TransactionContext.Provider>
   );

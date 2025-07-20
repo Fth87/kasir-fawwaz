@@ -12,7 +12,11 @@ import { ScrollText, Eye, Settings, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function TransactionsPage() {
-  const { transactions,isLoading } = useTransactions();
+  const { transactions,isLoading,fetchTransactions } = useTransactions();
+  // Fetch transactions on mount
+  React.useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
