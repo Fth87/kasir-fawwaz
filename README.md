@@ -6,7 +6,7 @@ Proyek ini bukan sekadar aplikasi. Ini adalah bentuk cinta dan balas budi seoran
 
 Setiap kali mereka lembur hanya untuk mencari catatan servis yang tercecer atau menghitung stok barang yang lupa dicatat, hatiku ikut tergerak. Aku tahu mereka pantas dapat yang lebih baik. Dan ketika aku mulai belajar tentang teknologi, saat itulah aku merasa: inilah jalanku untuk membantu mereka.
 
-Dari situ, lahirlah project Kasir Konter. Bukan cuma sistem kasir digital, tapi solusi untuk meringankan beban mereka. Aku ubah tumpukan catatan jadi database, nota kertas jadi struk digital, kalkulator jadi analisis otomatis. Tujuannya bukan cuma bikin semua jadi cepat, tapi supaya mereka bisa punya waktu lebih untuk diri sendiri—tanpa harus terus terikat pada rutinitas manual yang melelahkan.
+Dari situ, lahirlah project Kasir Konter. Bukan cuma sistem kasir digital, tapi solusi untuk meringankan beban mereka. Aku ubah tumpukan catatan jadi database, nota kertas jadi struk digital, kalkulator jadi analisis otomatis. Tujuannya bukan cuma bikin semua jadi cepat, tapi supaya mereka bisa punya waktu lebih untuk diri sendiri tanpa harus terus terikat pada rutinitas manual yang melelahkan.
 
 Aplikasi ini adalah bentuk rasa terima kasihku. Warisan yang mereka bangun dengan keringat dan kesabaran, kini kuperjuangkan dengan baris kode dan ilmu yang kupelajari. Ini bukan akhir, tapi awal dari bab baru. Dan aku bangga bisa jadi bagian dari perjalanan ini.
 
