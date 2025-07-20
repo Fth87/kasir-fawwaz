@@ -48,10 +48,12 @@ export default function ManageTransactionsPage() {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    // Ambil data transaksi saat komponen dimuat
-    fetchTransactions();
-  }, [fetchTransactions]);
-  // Proteksi rute bisa lebih sederhana
+    // Pastikan hanya admin yang mengambil data untuk keamanan tambahan
+    if (currentUser?.role === 'admin') {
+      fetchTransactions();
+    }
+  }, [fetchTransactions, currentUser]);
+  
   useEffect(() => {
     if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
       router.replace('/');

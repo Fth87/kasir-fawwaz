@@ -32,7 +32,7 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // 1. Pisahkan antara halaman publik dan halaman khusus non-login
+
   const publicPaths = ['/service-status']; // Boleh diakses siapa saja (login/tidak)
   const authRoutes = ['/login', '/auth/callback']; // Hanya untuk yang BELUM login
 

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 interface CustomerContextType {
   customers: Customer[];
   isLoading: boolean;
+  fetchCustomers: () => Promise<void>;
   addCustomer: (customerData: NewCustomerInput) => Promise<Customer | null>;
   getCustomerById: (id: string) => Customer | undefined;
   updateCustomer: (id: string, updates: UpdateCustomerInput) => Promise<boolean>;
@@ -48,10 +49,7 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, [supabase, toast]);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
-
+ 
   // Fungsi async untuk menambah pelanggan baru
   const addCustomer = useCallback(
     async (customerData: NewCustomerInput): Promise<Customer | null> => {
@@ -135,7 +133,7 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
     [supabase, toast]
   );
 
-  return <CustomerContext.Provider value={{ customers, isLoading, addCustomer, getCustomerById, updateCustomer, deleteCustomer }}>{children}</CustomerContext.Provider>;
+  return <CustomerContext.Provider value={{ customers, isLoading, addCustomer, getCustomerById, updateCustomer, deleteCustomer, fetchCustomers }}>{children}</CustomerContext.Provider>;
 };
 
 export const useCustomers = () => {

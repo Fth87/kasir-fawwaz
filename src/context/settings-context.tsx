@@ -23,25 +23,22 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
-  // Fungsi untuk mengambil data pengaturan dari Supabase
-  const fetchSettings = useCallback(async () => {
-    if (!user) {
-      setIsLoadingSettings(false);
-      return;
-    }
-
+  /**
+   * Mengambil data pengaturan dari Supabase untuk pengguna yang sedang login.
+   */
+  const fetchSettings = useCallback(async (userId: string) => {
     setIsLoadingSettings(true);
     const { data, error } = await supabase
       .from('store_settings')
       .select('store_name, store_address, store_phone, store_email')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // Abaikan error jika baris tidak ditemukan
+    if (error && error.code !== 'PGRST116') { // Abaikan error "0 rows"
       console.error("Error fetching settings:", error);
       toast({ title: "Error", description: "Gagal memuat pengaturan.", variant: "destructive" });
+      setSettings(null);
     } else if (data) {
-      // Map dari snake_case (database) ke camelCase (aplikasi)
       setSettings({
         storeName: data.store_name,
         storeAddress: data.store_address || undefined,
@@ -49,39 +46,49 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         storeEmail: data.store_email || undefined,
       });
     } else {
-      // Jika tidak ada data, berarti pengguna belum menyimpan pengaturan
-      setSettings(null);
+      setSettings(null); // Belum ada pengaturan
     }
     setIsLoadingSettings(false);
-  }, [supabase, user, toast]);
+  }, [supabase, toast]);
 
+  /**
+   * useEffect ini sekarang hanya berjalan ketika ID pengguna berubah (saat login/logout),
+   * bukan setiap kali objek 'user' diperbarui karena fokus tab.
+   */
   useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+    if (user?.id) {
+      fetchSettings(user.id);
+    } else {
+      // Jika tidak ada user (misal: setelah logout), kosongkan state dan berhenti loading
+      setSettings(null);
+      setIsLoadingSettings(false);
+    }
+  }, [user?.id, fetchSettings]); // <-- KUNCI PERBAIKAN ADA DI SINI
 
-  // Fungsi untuk memperbarui atau membuat pengaturan baru
+  /**
+   * Memperbarui atau membuat pengaturan baru di database.
+   */
   const updateSettings = useCallback(async (newSettings: Partial<StoreSettings>): Promise<boolean> => {
     if (!user) {
       toast({ title: "Error", description: "Anda harus login untuk mengubah pengaturan.", variant: "destructive" });
       return false;
     }
     
-    // Pastikan store_name tidak undefined karena wajib diisi
-    if (!newSettings.storeName) {
+    // Gabungkan dengan pengaturan sebelumnya untuk memastikan storeName ada saat update parsial
+    const finalSettings = { ...settings, ...newSettings };
+    if (!finalSettings.storeName) {
       toast({ title: "Error", description: "Nama toko harus diisi.", variant: "destructive" });
       return false;
     }
     
-    // Map dari camelCase (aplikasi) ke snake_case (database)
     const settingsForDb = {
-      id: user.id, // Kunci utama adalah user id
-      store_name: newSettings.storeName,
-      store_address: newSettings.storeAddress || null,
-      store_phone: newSettings.storePhone || null,
-      store_email: newSettings.storeEmail || null,
+      id: user.id,
+      store_name: finalSettings.storeName,
+      store_address: finalSettings.storeAddress || null,
+      store_phone: finalSettings.storePhone || null,
+      store_email: finalSettings.storeEmail || null,
     };
 
-    // upsert akan UPDATE jika data sudah ada, atau INSERT jika belum ada
     const { error } = await supabase.from('store_settings').upsert(settingsForDb);
 
     if (error) {
@@ -90,15 +97,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }
 
-    // Update state lokal secara optimis
-    setSettings(prev => {
-      const current = prev || { storeName: '', storeAddress: undefined, storePhone: undefined, storeEmail: undefined };
-      return { ...current, ...newSettings } as StoreSettings;
-    });
+    setSettings(finalSettings as StoreSettings);
     toast({ title: "Pengaturan Disimpan", description: "Pengaturan toko berhasil diperbarui." });
     return true;
-
-  }, [supabase, user, toast]);
+  }, [supabase, user, settings, toast]);
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings, isLoadingSettings }}>

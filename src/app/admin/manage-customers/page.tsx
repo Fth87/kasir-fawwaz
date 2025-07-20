@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, use } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -33,7 +33,7 @@ type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 export default function ManageCustomersPage() {
   // Ambil isLoading dari context pelanggan dan auth
-  const { customers, isLoading: isLoadingCustomers, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
+  const { customers, isLoading: isLoadingCustomers, addCustomer, updateCustomer, deleteCustomer, fetchCustomers } = useCustomers();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
   const router = useRouter();
 
@@ -66,6 +66,12 @@ export default function ManageCustomersPage() {
       form.reset({ name: '', phone: '', address: '', notes: '' });
     }
   }, [editingCustomer, isDialogOpen, form]);
+
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      fetchCustomers();
+    }
+  }, [fetchCustomers]);
 
   const handleOpenDialog = (customer?: Customer) => {
     setEditingCustomer(customer || null);
