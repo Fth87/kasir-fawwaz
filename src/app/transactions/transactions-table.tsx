@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useTransactions } from '@/context/transaction-context';
 import type { Transaction } from '@/types';
@@ -104,6 +104,10 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
   const data = transactions.length > 0 ? transactions : initialData;
   const count = pageCount > 0 ? pageCount : initialPageCount;
 
+  // Memoize the filters object to prevent re-creating it on every render,
+  // which would cause an infinite loop in the DataTable's useEffect hook.
+  const filters = useMemo(() => ({}), []);
+
   return (
     <DataTable
       columns={columns}
@@ -111,7 +115,7 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
       pageCount={count}
       fetchData={fetchData}
       isLoading={isLoading}
-      filters={{}} // Placeholder for future filter implementation
+      filters={filters}
       refreshTrigger={0} // Placeholder
     />
   );
