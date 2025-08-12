@@ -8,45 +8,44 @@ export function ProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    NProgress.configure({ showSpinner: false });
-
-    const handleAnchorClick = (event: Event) => {
-      const targetUrl = (event.currentTarget as HTMLAnchorElement).href;
-      const currentUrl = new URL(window.location.href);
-      const newUrl = new URL(targetUrl);
-
-      // Check if the navigation is internal and not just a hash change
-      if (newUrl.origin === currentUrl.origin && newUrl.pathname !== currentUrl.pathname) {
-          NProgress.start();
-      }
-    };
-
-    const handleMutation = () => {
-      const anchorElements = document.querySelectorAll('a[href]');
-      anchorElements.forEach(anchor => {
-        // To avoid adding multiple listeners, we can add a custom attribute
-        if (!anchor.hasAttribute('data-nprogress-handled')) {
-          anchor.addEventListener('click', handleAnchorClick);
-          anchor.setAttribute('data-nprogress-handled', 'true');
-        }
-      });
-    };
-
-    const mutationObserver = new MutationObserver(handleMutation);
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
-
-    // Initial run
-    handleMutation();
-
-    return () => {
-      mutationObserver.disconnect();
-    };
-  }, []);
-
+  // This useEffect handles stopping the progress bar when navigation is complete.
   useEffect(() => {
     NProgress.done();
   }, [pathname, searchParams]);
 
-  return null;
+  // This useEffect handles starting the progress bar by patching browser history methods.
+  useEffect(() => {
+    NProgress.configure({ showSpinner: false });
+
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    // Patch pushState to trigger NProgress.start()
+    history.pushState = function (...args) {
+      NProgress.start();
+      originalPushState.apply(history, args);
+    };
+
+    // Patch replaceState as well
+    history.replaceState = function (...args) {
+      NProgress.start();
+      originalReplaceState.apply(history, args);
+    };
+
+    // Listen to popstate for back/forward browser buttons
+    const handlePopState = () => {
+        NProgress.start();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Cleanup function to restore original methods on component unmount
+    return () => {
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  return null; // This component does not render anything.
 }
