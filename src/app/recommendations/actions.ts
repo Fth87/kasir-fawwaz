@@ -4,6 +4,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 import { z } from 'zod';
 
 // Skema untuk memvalidasi input dari form
@@ -35,11 +36,19 @@ export async function generatePriceRecommendations(formData: FormData) {
 
   // 3. Ambil data yang relevan dari database
   try {
-    const { data: transactions, error: txError } = await supabase.from('transactions').select('type, total_amount, details').gte('created_at', dateFrom.toISOString());
+    // Pastikan memilih semua kolom yang dibutuhkan oleh mapDbRowToTransaction
+    const { data: rawTransactions, error: txError } = await supabase
+      .from('transactions')
+      .select('id, created_at, customer_name, customer_id, total_amount, details, type')
+      .gte('created_at', dateFrom.toISOString());
 
     const { data: inventory, error: invError } = await supabase.from('inventory_items').select('name, purchase_price, selling_price');
 
     if (txError || invError) throw txError || invError;
+
+    // Gunakan mapper konsisten untuk mengubah data DB ke format aplikasi
+    const transactions = rawTransactions.map(mapDbRowToTransaction).filter(Boolean);
+
 
     // 4. Buat prompt cerdas untuk Gemini
     const prompt = `
