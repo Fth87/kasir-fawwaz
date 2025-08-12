@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { useTransactions } from '@/context/transaction-context';
+import React, { useEffect, useState } from 'react';
+import { getAllTransactions } from '@/app/transactions/actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart3, Loader2 } from 'lucide-react';
 import { useReports } from './hooks/useReports';
@@ -11,14 +11,23 @@ import { MonthlyBarChart } from './components/MonthlyBarChart';
 import { ExpensePieChart } from './components/ExpensesPieCharts';
 import { TransactionDetailTable } from './components/TransactionDetailTable';
 import { ReportSectionCard } from './components/ReportSectionCard';
+import type { Transaction } from '@/types';
 
 
 export default function ReportsPage() {
-  const { transactions, isLoading, fetchTransactions } = useTransactions();
-  // Fetch transactions on mount
-  React.useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getAllTransactions().then(({ data }) => {
+      if (data) {
+        setTransactions(data);
+      }
+      setIsLoading(false);
+    });
+  }, []);
+
   const {
     dateRange,
     setDateRange,

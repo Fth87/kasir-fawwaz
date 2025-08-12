@@ -1,222 +1,201 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { ColumnDef } from '@tanstack/react-table';
+import { format, parseISO } from 'date-fns';
+import { id as LocaleID } from 'date-fns/locale';
+
+// Konteks & Tipe Data
+import { useAccounts } from '@/context/account-context';
+import { useAuth } from '@/context/auth-context';
+import type { UserData } from './actions';
+import { UserRoles } from '@/types';
+import { useDebounce } from '@/hooks/use-debounce';
+
+// Komponen UI
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
-import { UserRoles } from '@/types';
-import { Users, PlusCircle, Loader2, ShieldAlert, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DataTable, createSortableHeader } from '@/components/ui/data-table';
+import { Users, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 
-// Import Server Actions dan tipe data
-import { getUsers, createNewUser, deleteUser, type UserData } from './actions';
-import { useAuth } from '@/context/auth-context';
-import { EditUserDialog } from './EditUserDialog';
-
-// Skema diubah untuk menggunakan email
-const addUserFormSchema = z.object({
+// Skema Zod untuk validasi form
+const accountSchema = z.object({
   email: z.string().email('Format email tidak valid.'),
-  password: z.string().min(6, 'Password minimal 6 karakter.'),
-  role: z.enum(UserRoles, { required_error: 'Role harus dipilih.' }),
+  role: z.enum(UserRoles),
+  password: z.string().min(6, 'Password minimal 6 karakter.').optional().or(z.literal('')),
 });
+type AccountFormValues = z.infer<typeof accountSchema>;
 
-type AddUserFormValues = z.infer<typeof addUserFormSchema>;
 
+// Komponen Halaman Utama
 export default function ManageAccountsPage() {
+  const { users, isLoading, pageCount, fetchData, addUser, updateUser, deleteUser } = useAccounts();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
 
-  const [isPending, startTransition] = useTransition(); // Hook untuk menangani state loading dari Server Action
-  const [users, setUsers] = useState<UserData[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
 
-  useEffect(() => {
-    getUsers().then((result) => {
-      // Periksa apakah ada error dan data-nya valid
-      if (result.data) {
-        setUsers(result.data);
-      }
-      // Jika ada error, bisa ditangani di sini
-      if (result.error) {
-        console.error('Gagal mengambil data pengguna:', result.error);
-        // toast({ title: "Error", description: result.error, variant: "destructive" });
-      }
-    });
-  }, []);
+  const [nameFilter, setNameFilter] = useState('');
+  const debouncedNameFilter = useDebounce(nameFilter, 500);
+  const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
 
-  const form = useForm<AddUserFormValues>({
-    resolver: zodResolver(addUserFormSchema),
-    defaultValues: { email: '', password: '', role: 'cashier' },
-  });
+  const columns: ColumnDef<UserData>[] = React.useMemo(
+    () => getColumns({
+        onSuccess: triggerRefresh,
+        updateUser,
+        deleteUser,
+        currentUserId: currentUser?.id
+    }),
+    [triggerRefresh, updateUser, deleteUser, currentUser?.id]
+  );
 
-  // Proteksi rute di sisi klien (sebagai fallback)
-  useEffect(() => {
-    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
-      router.replace('/');
-    }
-  }, [currentUser, isLoadingAuth, router]);
-
-  const onSubmitAddUser = (data: AddUserFormValues) => {
-    const formData = new FormData();
-    formData.append('email', data.email);
-    formData.append('password', data.password);
-    formData.append('role', data.role);
-
-    startTransition(async () => {
-      const result = await createNewUser(formData);
-      if (result.error) {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      } else {
-        toast({ title: 'Sukses', description: result.success as string });
-        form.reset();
-
-        // Ambil data terbaru dan update state dengan benar
-        getUsers().then((fetchResult) => {
-          if (fetchResult.data) {
-            setUsers(fetchResult.data);
-          }
-        });
-      }
-    });
-  };
-
-  // Handler untuk tombol hapus
-  const handleDeleteUser = (userId: string) => {
-    startTransition(async () => {
-      const result = await deleteUser(userId);
-      if (result.error) {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      } else {
-        toast({ title: 'Sukses', description: result.success });
-        // Optimistic UI update
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
-      }
-    });
-  };
-
-  if (isLoadingAuth || !currentUser || currentUser.role !== 'admin') {
+  if (isLoadingAuth) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+  if (!currentUser || currentUser.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        {isLoadingAuth ? <Loader2 className="h-12 w-12 animate-spin text-primary" /> : <ShieldAlert className="h-12 w-12 text-destructive" />}
-        <p className="text-muted-foreground">{isLoadingAuth ? 'Memuat autentikasi...' : 'Akses Ditolak. Hanya untuk Admin.'}</p>
+        <ShieldAlert className="h-12 w-12 text-destructive" /><p>Akses Ditolak.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      {/* Tabel Daftar Pengguna */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-headline flex items-center">
-            <Users className="mr-2 h-6 w-6" /> Kelola Akun
-          </CardTitle>
-          <CardDescription>Lihat, tambah, atau hapus akun pengguna sistem.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-2xl font-headline flex items-center"><Users className="mr-3 h-7 w-7" /> Kelola Akun Pengguna</CardTitle>
+            <CardDescription>Tambah, lihat, ubah, dan hapus akun pengguna.</CardDescription>
+          </div>
+          <AccountDialog onSuccess={triggerRefresh} addUser={addUser} updateUser={updateUser}>
+            <Button><PlusCircle className="mr-2 h-5 w-5" /> Tambah Akun Baru</Button>
+          </AccountDialog>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell className="capitalize">{user.role}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <EditUserDialog disabled={isPending || user.id === currentUser.id} user={user} />
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)} disabled={isPending || user.id === currentUser.id}>
-                      <Trash2 className="mr-1 h-4 w-4" /> Hapus
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className='max-w-full overflow-x-scroll'>
+          <DataTable columns={columns} data={users} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+            <div className="flex items-center gap-4">
+              <Input placeholder="Filter berdasarkan email..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
+            </div>
+          </DataTable>
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      {/* Form Tambah Pengguna */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-headline flex items-center">
-            <PlusCircle className="mr-2 h-5 w-5" /> Tambah Pengguna Baru
-          </CardTitle>
-        </CardHeader>
+// --- Definisi Kolom untuk DataTable ---
+interface GetColumnsProps {
+  onSuccess: () => void;
+  updateUser: (id: string, data: FormData) => Promise<boolean>;
+  deleteUser: (id: string) => Promise<boolean>;
+  currentUserId?: string;
+}
+
+const getColumns = ({ onSuccess, updateUser, deleteUser, currentUserId }: GetColumnsProps): ColumnDef<UserData>[] => [
+  { accessorKey: 'email', header: ({ column }) => createSortableHeader(column, 'Email'), cell: ({ row }) => <div className="font-medium">{row.original.email}</div> },
+  { accessorKey: 'role', header: ({ column }) => createSortableHeader(column, 'Role'), cell: ({ row }) => <div className="capitalize">{row.original.role}</div> },
+  { accessorKey: 'createdAt', header: ({ column }) => createSortableHeader(column, 'Dibuat Tanggal'), cell: ({ row }) => (row.original.createdAt ? format(parseISO(row.original.createdAt), 'dd MMM yyyy', { locale: LocaleID }) : '-') },
+  {
+    id: 'actions',
+    cell: ({ row }) => {
+      const user = row.original;
+      const isCurrentUser = user.id === currentUserId;
+      return (
+        <div className="text-right space-x-2">
+          <AccountDialog item={user} onSuccess={onSuccess} updateUser={updateUser} addUser={async () => false} disabled={isCurrentUser}>
+            <Button variant="outline" size="sm" disabled={isCurrentUser}><Edit className="h-4 w-4" /></Button>
+          </AccountDialog>
+          <DeleteDialog item={user} onSuccess={onSuccess} deleteUser={deleteUser} disabled={isCurrentUser} />
+        </div>
+      );
+    },
+  },
+];
+
+// --- Sub-komponen untuk Dialog Add/Edit ---
+interface AccountDialogProps {
+  children: React.ReactNode;
+  item?: UserData;
+  onSuccess: () => void;
+  addUser: (data: FormData) => Promise<boolean>;
+  updateUser: (id: string, data: FormData) => Promise<boolean>;
+  disabled?: boolean;
+}
+
+function AccountDialog({ children, item, onSuccess, addUser, updateUser, disabled }: AccountDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const form = useForm<AccountFormValues>({
+    resolver: zodResolver(accountSchema),
+    defaultValues: { email: item?.email || '', role: item?.role as 'admin' | 'cashier' || 'cashier', password: '' },
+  });
+
+  useEffect(() => {
+    form.reset({ email: item?.email || '', role: item?.role as 'admin' | 'cashier' || 'cashier', password: '' });
+  }, [item, open, form]);
+
+  const onSubmit = (data: AccountFormValues) => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('email', data.email);
+      formData.append('role', data.role);
+      if (data.password) formData.append('password', data.password);
+      const success = item ? await updateUser(item.id, formData) : await addUser(formData);
+      if (success) { setOpen(false); onSuccess(); }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild disabled={disabled}>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{item ? 'Ubah Akun Pengguna' : 'Tambah Akun Baru'}</DialogTitle></DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmitAddUser)}>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="pengguna@contoh.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {UserRoles.map((role) => (
-                          <SelectItem key={role} value={role} className="capitalize">
-                            {role}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                Tambah Pengguna
-              </Button>
-            </CardFooter>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" readOnly={!!item} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="role" render={({ field }) => (<FormItem><FormLabel>Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih role..." /></SelectTrigger></FormControl><SelectContent>{UserRoles.map(role => (<SelectItem key={role} value={role} className="capitalize">{role}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Password {item ? '(Opsional)' : ''}</FormLabel><FormControl><Input {...field} type="password" placeholder={item ? "Isi untuk mengubah password" : "••••••••"} /></FormControl><FormMessage /></FormItem>)} />
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Simpan'}</Button></DialogFooter>
           </form>
         </Form>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --- Sub-komponen untuk AlertDialog Delete ---
+interface DeleteDialogProps {
+  item: UserData;
+  onSuccess: () => void;
+  deleteUser: (id: string) => Promise<boolean>;
+  disabled?: boolean;
+}
+
+function DeleteDialog({ item, onSuccess, deleteUser, disabled }: DeleteDialogProps) {
+  const [isPending, startTransition] = useTransition();
+  const handleDelete = () => {
+    startTransition(async () => {
+      const success = await deleteUser(item.id);
+      if (success) onSuccess();
+    });
+  };
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={disabled}><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle><AlertDialogDescription>Ini akan menghapus akun <strong>{item.email}</strong> secara permanen.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleDelete} disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Hapus'}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

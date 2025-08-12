@@ -3,44 +3,44 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ShoppingCart, Wrench, BadgeDollarSign, ScrollText, Lightbulb, ArrowRight } from 'lucide-react';
-import { useTransactions } from '@/context/transaction-context';
+import { getAllTransactions } from './transactions/actions';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Transaction } from '@/types';
 
 export default function DashboardPage() {
-  const { transactions,fetchTransactions } = useTransactions();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({
     totalSales: 0,
     totalServices: 0,
     totalExpenses: 0,
     transactionCount: 0,
   });
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
-
-  useEffect(() => {
-    setIsClient(true);
+    setIsLoading(true);
+    getAllTransactions().then(({ data }) => {
+      if (data) {
+        setTransactions(data);
+        let sales = 0;
+        let services = 0;
+        let expenses = 0;
+        data.forEach((tx) => {
+          if (tx.type === 'sale') sales += tx.grandTotal;
+          if (tx.type === 'service') services += tx.serviceFee;
+          if (tx.type === 'expense') expenses += tx.amount;
+        });
+        setSummary({
+          totalSales: sales,
+          totalServices: services,
+          totalExpenses: expenses,
+          transactionCount: data.length,
+        });
+      }
+      setIsLoading(false);
+    });
   }, []);
-
-  useEffect(() => {
-    let sales = 0;
-    let services = 0;
-    let expenses = 0;
-    transactions.forEach((tx) => {
-      if (tx.type === 'sale') sales += tx.grandTotal;
-      if (tx.type === 'service') services += tx.serviceFee;
-      if (tx.type === 'expense') expenses += tx.amount;
-    });
-    setSummary({
-      totalSales: sales,
-      totalServices: services,
-      totalExpenses: expenses,
-      transactionCount: transactions.length,
-    });
-  }, [transactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
@@ -67,7 +67,7 @@ export default function DashboardPage() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(summary.totalSales)}</div>
+            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{formatCurrency(summary.totalSales)}</div>}
             <p className="text-xs text-muted-foreground">From sales transactions</p>
           </CardContent>
         </Card>
@@ -77,7 +77,7 @@ export default function DashboardPage() {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(summary.totalServices)}</div>
+            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{formatCurrency(summary.totalServices)}</div>}
             <p className="text-xs text-muted-foreground">From service transactions</p>
           </CardContent>
         </Card>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
             <BadgeDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(summary.totalExpenses)}</div>
+            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{formatCurrency(summary.totalExpenses)}</div>}
             <p className="text-xs text-muted-foreground">Total recorded expenses</p>
           </CardContent>
         </Card>
@@ -97,7 +97,7 @@ export default function DashboardPage() {
             <ScrollText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.transactionCount}</div>
+            {isLoading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{summary.transactionCount}</div>}
             <p className="text-xs text-muted-foreground">All recorded transactions</p>
           </CardContent>
         </Card>
@@ -110,26 +110,10 @@ export default function DashboardPage() {
             <CardDescription>Quickly access common tasks.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-            <Button variant="outline" asChild className="w-full">
-              <Link href="/sales">
-                <ShoppingCart className="mr-2 h-4 w-4" /> Record Sale
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className="w-full">
-              <Link href="/services">
-                <Wrench className="mr-2 h-4 w-4" /> Record Service
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className="w-full">
-              <Link href="/expenses">
-                <BadgeDollarSign className="mr-2 h-4 w-4" /> Record Expense
-              </Link>
-            </Button>
-            <Button variant="outline" asChild className="w-full">
-              <Link href="/recommendations">
-                <Lightbulb className="mr-2 h-4 w-4" /> Price AI
-              </Link>
-            </Button>
+            <Button variant="outline" asChild className="w-full"><Link href="/sales"><ShoppingCart className="mr-2 h-4 w-4" /> Record Sale</Link></Button>
+            <Button variant="outline" asChild className="w-full"><Link href="/services"><Wrench className="mr-2 h-4 w-4" /> Record Service</Link></Button>
+            <Button variant="outline" asChild className="w-full"><Link href="/expenses"><BadgeDollarSign className="mr-2 h-4 w-4" /> Record Expense</Link></Button>
+            <Button variant="outline" asChild className="w-full"><Link href="/recommendations"><Lightbulb className="mr-2 h-4 w-4" /> Price AI</Link></Button>
           </CardContent>
         </Card>
         <Card>
@@ -138,11 +122,9 @@ export default function DashboardPage() {
             <CardDescription>Showing last 5 transactions.</CardDescription>
           </CardHeader>
           <CardContent>
-            {!isClient ? (
+            {isLoading ? (
               <div className="space-y-3">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" />
               </div>
             ) : transactions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No transactions recorded yet.</p>
@@ -167,7 +149,7 @@ export default function DashboardPage() {
                 ))}
               </ul>
             )}
-            {isClient && transactions.length > 5 && (
+            {transactions.length > 5 && (
               <Button variant="link" asChild className="mt-2 p-0 h-auto">
                 <Link href="/transactions">View all transactions</Link>
               </Button>

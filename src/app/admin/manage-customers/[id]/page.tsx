@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
-// Hooks & Contexts
-import { useCustomers } from '@/context/customer-context';
-import { useTransactions } from '@/context/transaction-context';
+// Hooks & Server Actions
+import { getTransactionsByCustomerId } from '@/app/transactions/actions';
+import { getCustomerById } from '../actions';
 import { useAuth } from '@/context/auth-context';
 
 // Types
@@ -31,35 +31,35 @@ const formatCurrency = (amount: number) => {
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { getCustomerById, isLoading: isLoadingCustomers } = useCustomers();
-  const { transactions: allTransactions, isLoading: isLoadingTransaction, fetchTransactions } = useTransactions();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
 
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const customerId = params.id as string;
+
   useEffect(() => {
     if (customerId) {
-      fetchTransactions(); // Ensure transactions are fetched when customerId changes
+        setIsLoading(true);
+        Promise.all([
+            getCustomerById(customerId),
+            getTransactionsByCustomerId(customerId)
+        ]).then(([customerResult, transactionResult]) => {
+            if(customerResult.data) setCustomer(customerResult.data);
+            if(transactionResult.data) setTransactions(transactionResult.data);
+            setIsLoading(false);
+        });
     }
-  }, [customerId, fetchTransactions]);
-
-  // Ambil data pelanggan dari state
-  const customer = getCustomerById(customerId);
-
-  // Filter transaksi di sisi klien
-  const customerTransactions = React.useMemo(() => {
-    if (!customerId) return [];
-    return allTransactions.filter((tx) => 'customerId' in tx && tx.customerId === customerId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [customerId, allTransactions]);
-
-  const isLoading = isLoadingCustomers || isLoadingTransaction || isLoadingAuth;
+  }, [customerId]);
 
   useEffect(() => {
-    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
+    if (!isLoadingAuth && !isLoading && (!currentUser || currentUser.role !== 'admin')) {
       router.replace('/');
     }
-  }, [currentUser, isLoadingAuth, router]);
+  }, [currentUser, isLoadingAuth, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading || isLoadingAuth) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -95,7 +95,7 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-8">
       <CustomerInfoCard customer={customer} />
-      <TransactionHistoryCard transactions={customerTransactions} customerName={customer.name} />
+      <TransactionHistoryCard transactions={transactions} customerName={customer.name} />
     </div>
   );
 }
@@ -130,7 +130,6 @@ function CustomerInfoCard({ customer }: { customer: Customer }) {
   );
 }
 
-// Sub-komponen generik untuk menampilkan item informasi
 function InfoItem({ icon: Icon, label, value, className = '' }: { icon: React.ElementType; label: string; value: string; className?: string }) {
   return (
     <div className={`flex items-start gap-3 ${className}`}>
@@ -143,7 +142,6 @@ function InfoItem({ icon: Icon, label, value, className = '' }: { icon: React.El
   );
 }
 
-// Sub-komponen untuk riwayat transaksi
 function TransactionHistoryCard({ transactions, customerName }: { transactions: Transaction[]; customerName: string }) {
   const getTransactionSummary = (tx: Transaction) => {
     if (tx.type === 'sale') return `Penjualan: ${tx.items.length} barang`;

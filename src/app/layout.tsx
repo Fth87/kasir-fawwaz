@@ -7,6 +7,8 @@ import { TransactionProvider } from '@/context/transaction-context';
 import { AuthProvider } from '@/context/auth-context';
 import { InventoryProvider } from '@/context/inventory-context';
 import { CustomerProvider } from '@/context/customer-context';
+import { ServiceProvider } from '@/context/service-context';
+import { AccountProvider } from '@/context/account-context';
 import { SettingsProvider } from '@/context/settings-context'; // Import SettingsProvider
 import { Toaster } from '@/components/ui/toaster';
 
@@ -36,10 +38,14 @@ export default function RootLayout({
             <InventoryProvider>
               <CustomerProvider>
                 <TransactionProvider>
-                  <AppLayout>
-                    {children}
-                  </AppLayout>
-                  <Toaster />
+                  <ServiceProvider>
+                    <AccountProvider>
+                      <AppLayout>
+                        {children}
+                      </AppLayout>
+                      <Toaster />
+                    </AccountProvider>
+                  </ServiceProvider>
                 </TransactionProvider>
               </CustomerProvider>
             </InventoryProvider>

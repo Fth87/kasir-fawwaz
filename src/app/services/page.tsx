@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { CustomerCombobox } from '@/components/ui/customer-combobox';
 
 // Hooks, Contexts & Utils
-import { useTransactions } from '@/context/transaction-context';
+import { useTransactionDispatch } from '@/context/transaction-context';
 import { useCustomers } from '@/context/customer-context';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -29,13 +29,13 @@ const serviceFormSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(1, 'Nama pelanggan harus diisi'),
   }),
-  price: z.coerce.number().min(0, 'Biaya servis tidak boleh negatif'),
+  serviceFee: z.coerce.number().min(0, 'Biaya servis tidak boleh negatif'),
 });
 
 type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 export default function RecordServicePage() {
-  const { addTransaction } = useTransactions();
+  const { addTransaction } = useTransactionDispatch();
   const { isLoading: isLoadingCustomers } = useCustomers();
   const { toast } = useToast();
   const router = useRouter();
@@ -48,7 +48,7 @@ export default function RecordServicePage() {
       device: '',
       issueDescription: '',
       customer: { id: undefined, name: '' },
-      price: 0,
+      serviceFee: 0,
     },
   });
 
@@ -62,7 +62,7 @@ export default function RecordServicePage() {
         customerId: data.customer.id,
         device: data.device,
         issueDescription: data.issueDescription,
-        price: data.price,
+        serviceFee: data.serviceFee,
       });
 
       if (success) {
@@ -143,7 +143,7 @@ export default function RecordServicePage() {
             />
             <FormField
               control={form.control}
-              name="price"
+              name="serviceFee"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Biaya Servis (IDR)</FormLabel>

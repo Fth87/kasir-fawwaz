@@ -23,27 +23,34 @@ export type UserData = {
   id: string;
   email: string | undefined;
   role: string;
+  createdAt: string | undefined;
 };
 
-// --- FUNGSI UNTUK MENGAMBIL DAFTAR PENGGUNA ---
-export async function getUsers(): Promise<{ data: UserData[] | null; error: string | null; }> {
+// --- FUNGSI UNTUK MENGAMBIL DAFTAR PENGGUNA DENGAN PAGINASI ---
+export async function getUsers(
+  pageIndex: number,
+  pageSize: number
+): Promise<{ data: { users: UserData[], count: number } | null; error: string | null; }> {
   try {
     const supabase = await createAdminClient();
 
-    // 1. Ambil data pengguna dengan aman
-    const { data, error } = await supabase.auth.admin.listUsers();
+    // The admin SDK's listUsers function does not support sorting.
+    // Sorting will be handled client-side or would require a more complex DB query.
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page: pageIndex + 1, // listUsers is 1-based
+      perPage: pageSize,
+    });
 
-    // 2. Periksa error sebelum mengakses data
     if (error) throw error;
 
-    // 3. Format data ke tipe yang kita inginkan
     const formattedUsers: UserData[] = data.users.map(user => ({
       id: user.id,
       email: user.email,
       role: user.user_metadata?.role || 'cashier',
+      createdAt: user.created_at,
     }));
-    
-    return { data: formattedUsers, error: null };
+
+    return { data: { users: formattedUsers, count: (data as any).total ?? 0 }, error: null };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan tidak dikenal.";
