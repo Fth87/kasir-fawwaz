@@ -10,6 +10,7 @@ import { PeriodRecap } from './components/PeriodRecaps';
 import { MonthlyBarChart } from './components/MonthlyBarChart';
 import { ExpensePieChart } from './components/ExpensesPieCharts';
 import { TransactionDetailTable } from './components/TransactionDetailTable';
+import { ReportSectionCard } from './components/ReportSectionCard';
 
 
 export default function ReportsPage() {
@@ -56,43 +57,23 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-headline">Rekap Periode</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PeriodRecap recap={rangeRecap} />
-        </CardContent>
-      </Card>
+      <ReportSectionCard title="Rekap Periode">
+        <PeriodRecap recap={rangeRecap} />
+      </ReportSectionCard>
       
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-headline">Grafik 6 Bulan Terakhir</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[350px]">
-          <MonthlyBarChart data={monthlyChartData} />
-        </CardContent>
-      </Card>
+      <ReportSectionCard title="Grafik 6 Bulan Terakhir" className="h-[350px]">
+        <MonthlyBarChart data={monthlyChartData} />
+      </ReportSectionCard>
 
       {(transactionType === 'all' || transactionType === 'expense') && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-headline">Rincian Pengeluaran</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[350px]">
-            <ExpensePieChart data={expenseBreakdownData} />
-          </CardContent>
-        </Card>
+        <ReportSectionCard title="Rincian Pengeluaran" className="h-[350px]">
+          <ExpensePieChart data={expenseBreakdownData} />
+        </ReportSectionCard>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-headline">Detail Transaksi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TransactionDetailTable transactions={filteredTransactions} />
-        </CardContent>
-      </Card>
+      <ReportSectionCard title="Detail Transaksi">
+        <TransactionDetailTable transactions={filteredTransactions} />
+      </ReportSectionCard>
     </div>
   );
 }

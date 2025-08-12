@@ -1,12 +1,13 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
 import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 
+// --- Input Types ---
 type AddSaleTransactionInput = {
   type: 'sale';
   customerName: string;
@@ -34,19 +35,27 @@ type AddExpenseTransactionInput = {
 
 type AddTransactionInput = AddSaleTransactionInput | AddServiceTransactionInput | AddExpenseTransactionInput;
 
-interface TransactionContextType {
+
+// --- Context Shape ---
+interface TransactionState {
   transactions: Transaction[];
   isLoading: boolean;
+}
+
+interface TransactionActions {
   addTransaction: (transactionData: AddTransactionInput) => Promise<boolean>;
-  fetchTransactions: () => void; 
+  fetchTransactions: () => void;
   getTransactionById: (id: string) => Transaction | undefined;
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<boolean>;
   getTransactionsByCustomerId: (customerId: string) => Transaction[];
 }
 
-const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
+// --- Context Creation ---
+const TransactionStateContext = createContext<TransactionState | undefined>(undefined);
+const TransactionDispatchContext = createContext<TransactionActions | undefined>(undefined);
 
+// --- Provider Component ---
 export const TransactionProvider = ({ children }: { children: ReactNode }) => {
   const supabase = createClient();
   const { toast } = useToast();
@@ -63,12 +72,10 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       setTransactions([]);
     } else {
       const formattedTransactions = data.map(mapDbRowToTransaction).filter(Boolean) as Transaction[];
-
       setTransactions(formattedTransactions);
     }
     setIsLoading(false);
   }, [supabase, toast]);
-
 
   const addTransaction = useCallback(
     async (transactionData: AddTransactionInput): Promise<boolean> => {
@@ -108,7 +115,6 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
           },
         };
       } else {
-        // expense
         const expenseData = transactionData;
         transactionToInsert = {
           type: 'expense',
@@ -145,6 +151,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     },
     [transactions]
   );
+
   const deleteTransaction = useCallback(
     async (transactionId: string): Promise<boolean> => {
       const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
@@ -157,21 +164,19 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
 
       setTransactions((prev) => prev.filter((tx) => tx.id !== transactionId));
       toast({ title: 'Sukses', description: 'Transaksi berhasil dihapus.' });
-
       return true;
     },
     [supabase, toast]
   );
+
   const updateTransactionDetails = useCallback(
     async (transactionId: string, updates: Partial<Transaction>): Promise<boolean> => {
-      // 1. Cari transaksi yang ada di state untuk mendapatkan data asli & tipenya
       const currentTx = transactions.find((tx) => tx.id === transactionId);
       if (!currentTx) {
         toast({ title: 'Error', description: 'Transaksi tidak ditemukan.', variant: 'destructive' });
         return false;
       }
 
-      // Objek kosong untuk menampung data yang akan dikirim ke Supabase
       const updatesForDb: {
         customer_name?: string;
         total_amount?: number;
@@ -188,60 +193,38 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         };
       } = {};
 
-      // 2. Gunakan switch pada TIPE ASLI untuk type narrowing yang aman
       switch (currentTx.type) {
         case 'sale': {
-          // Di sini, TypeScript tahu `currentTx` adalah SaleTransaction
-          // dan `updates` kemungkinan adalah Partial<SaleTransaction>
           const saleUpdates = updates as Partial<SaleTransaction>;
-
-          // 3. Gabungkan 'details' lama dan baru secara aman
-          const newDetails = {
-            paymentMethod: saleUpdates.paymentMethod || currentTx.paymentMethod,
-            items: saleUpdates.items || currentTx.items,
-          };
-          updatesForDb.details = newDetails;
-
-          // Siapkan update untuk kolom level atas
-          updatesForDb.customer_name = saleUpdates.customerName || currentTx.customerName;
-
-          // 4. Lakukan kalkulasi ulang jika data yang relevan berubah
-          if (saleUpdates.items) {
-            updatesForDb.total_amount = newDetails.items.reduce((sum, item) => sum + item.quantity * item.pricePerItem, 0);
-          } else {
-            updatesForDb.total_amount = saleUpdates.grandTotal || currentTx.grandTotal;
-          }
+          const newDetails = { ...currentTx, ...saleUpdates };
+          updatesForDb.details = { paymentMethod: newDetails.paymentMethod, items: newDetails.items };
+          updatesForDb.customer_name = newDetails.customerName;
+          updatesForDb.total_amount = newDetails.items.reduce((sum, item) => sum + item.quantity * item.pricePerItem, 0);
           break;
         }
-
         case 'service': {
           const serviceUpdates = updates as Partial<ServiceTransaction>;
-          const newDetails = {
-            serviceName: serviceUpdates.serviceName || currentTx.serviceName,
-            device: serviceUpdates.device || currentTx.device,
-            issueDescription: serviceUpdates.issueDescription || currentTx.issueDescription,
-            status: serviceUpdates.status || currentTx.status,
-            progressNotes: serviceUpdates.progressNotes || currentTx.progressNotes,
+          const newDetails = { ...currentTx, ...serviceUpdates };
+          updatesForDb.details = {
+            serviceName: newDetails.serviceName,
+            device: newDetails.device,
+            issueDescription: newDetails.issueDescription,
+            status: newDetails.status,
+            progressNotes: newDetails.progressNotes,
           };
-          updatesForDb.details = newDetails;
-          updatesForDb.customer_name = serviceUpdates.customerName || currentTx.customerName;
-          updatesForDb.total_amount = serviceUpdates.serviceFee || currentTx.serviceFee;
+          updatesForDb.customer_name = newDetails.customerName;
+          updatesForDb.total_amount = newDetails.serviceFee;
           break;
         }
-
         case 'expense': {
           const expenseUpdates = updates as Partial<ExpenseTransaction>;
-          const newDetails = {
-            description: expenseUpdates.description || currentTx.description,
-            category: expenseUpdates.category || currentTx.category,
-          };
-          updatesForDb.details = newDetails;
-          updatesForDb.total_amount = expenseUpdates.amount || currentTx.amount;
+          const newDetails = { ...currentTx, ...expenseUpdates };
+          updatesForDb.details = { description: newDetails.description, category: newDetails.category };
+          updatesForDb.total_amount = newDetails.amount;
           break;
         }
       }
 
-      // 5. Kirim data yang sudah bersih dan aman ke Supabase
       const { error } = await supabase.from('transactions').update(updatesForDb).eq('id', transactionId);
 
       if (error) {
@@ -260,30 +243,50 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
   const getTransactionsByCustomerId = useCallback(
     (customerId: string): Transaction[] => {
       if (!customerId) return [];
-      return transactions
-        .filter((tx) => {
-          // Mencocokkan berdasarkan properti customerId yang mungkin ada
-          if ('customerId' in tx && tx.customerId === customerId) {
-            return true;
-          }
-          return false;
-        })
+      return transactions.filter((tx) => 'customerId' in tx && tx.customerId === customerId)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     },
     [transactions]
   );
 
+  const stateValue = useMemo(() => ({ transactions, isLoading }), [transactions, isLoading]);
+
+  const dispatchValue = useMemo(() => ({
+    fetchTransactions,
+    addTransaction,
+    getTransactionById,
+    deleteTransaction,
+    updateTransactionDetails,
+    getTransactionsByCustomerId,
+  }), [fetchTransactions, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId]);
+
+
   return (
-    <TransactionContext.Provider value={{ transactions, isLoading, addTransaction, getTransactionById, deleteTransaction, updateTransactionDetails, getTransactionsByCustomerId, fetchTransactions }}>
-      {children}
-    </TransactionContext.Provider>
+    <TransactionStateContext.Provider value={stateValue}>
+      <TransactionDispatchContext.Provider value={dispatchValue}>
+        {children}
+      </TransactionDispatchContext.Provider>
+    </TransactionStateContext.Provider>
   );
 };
 
-export const useTransactions = () => {
-  const context = useContext(TransactionContext);
+// --- Custom Hooks ---
+export const useTransactionState = () => {
+  const context = useContext(TransactionStateContext);
   if (context === undefined) {
-    throw new Error('useTransactions must be used within a TransactionProvider');
+    throw new Error('useTransactionState must be used within a TransactionProvider');
   }
   return context;
+};
+
+export const useTransactionDispatch = () => {
+  const context = useContext(TransactionDispatchContext);
+  if (context === undefined) {
+    throw new Error('useTransactionDispatch must be used within a TransactionProvider');
+  }
+  return context;
+};
+
+export const useTransactions = () => {
+  return { ...useTransactionState(), ...useTransactionDispatch() };
 };
