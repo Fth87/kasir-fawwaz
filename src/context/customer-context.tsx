@@ -5,11 +5,13 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Customer, NewCustomerInput, UpdateCustomerInput } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
 
 interface CustomerContextType {
   customers: Customer[];
   isLoading: boolean;
-  fetchCustomers: () => Promise<void>;
+  pageCount: number;
+  fetchData: (pagination: PaginationState, sorting: SortingState, filters: { name?: string }) => void;
   addCustomer: (customerData: NewCustomerInput) => Promise<Customer | null>;
   getCustomerById: (id: string) => Customer | undefined;
   updateCustomer: (id: string, updates: UpdateCustomerInput) => Promise<boolean>;
@@ -23,37 +25,54 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pageCount, setPageCount] = useState(0);
 
-  // Fungsi terpusat untuk mengambil data dari Supabase
-  const fetchCustomers = useCallback(async () => {
-    setIsLoading(true);
-    const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
+  const fetchData = useCallback(
+    async (pagination: PaginationState, sorting: SortingState, filters: { name?: string }) => {
+      setIsLoading(true);
 
-    if (error) {
-      toast({ title: 'Error', description: 'Gagal memuat data pelanggan.', variant: 'destructive' });
-      setCustomers([]);
-    } else {
-      // Map data dari snake_case (DB) ke camelCase (JS)
-      const formattedCustomers = data.map((c) => ({
-        id: c.id,
-        name: c.name,
-        phone: c.phone ?? undefined,
-        address: c.address ?? undefined,
-        notes: c.notes ?? undefined,
-        user_id: c.user_id,
-        createdAt: c.created_at,
-        updatedAt: c.updated_at,
-      }));
-      setCustomers(formattedCustomers);
-    }
-    setIsLoading(false);
-  }, [supabase, toast]);
+      const { pageIndex, pageSize } = pagination;
+      const from = pageIndex * pageSize;
+      const to = from + pageSize - 1;
 
+      let query = supabase.from('customers').select('*', { count: 'exact' }).range(from, to);
+
+      if (filters.name) {
+        query = query.ilike('name', `%${filters.name}%`);
+      }
+
+      if (sorting.length > 0) {
+        const sort = sorting[0];
+        query = query.order(sort.id, { ascending: !sort.desc });
+      } else {
+        query = query.order('name', { ascending: true });
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        toast({ title: 'Error', description: 'Gagal memuat data pelanggan.', variant: 'destructive' });
+        setCustomers([]);
+      } else if (data) {
+        const formattedCustomers = data.map((c) => ({
+            id: c.id,
+            name: c.name,
+            phone: c.phone ?? undefined,
+            address: c.address ?? undefined,
+            notes: c.notes ?? undefined,
+            createdAt: c.created_at,
+            updatedAt: c.updated_at,
+        }));
+        setCustomers(formattedCustomers);
+        setPageCount(Math.ceil((count ?? 0) / pageSize));
+      }
+      setIsLoading(false);
+    },
+    [supabase, toast]
+  );
  
-  // Fungsi async untuk menambah pelanggan baru
   const addCustomer = useCallback(
     async (customerData: NewCustomerInput): Promise<Customer | null> => {
-      // Validasi duplikat nomor telepon langsung ke database
       if (customerData.phone) {
         const { data: existing } = await supabase.from('customers').select('id').eq('phone', customerData.phone).single();
         if (existing) {
@@ -72,7 +91,7 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
 
       toast({ title: 'Sukses', description: `Pelanggan "${customerData.name}" berhasil ditambahkan.` });
 
-      const formattedCustomer: Customer = {
+       const formattedCustomer: Customer = {
         id: newCustomerData.id,
         name: newCustomerData.name,
         phone: newCustomerData.phone || undefined, 
@@ -82,8 +101,6 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
         updatedAt: newCustomerData.updated_at,
       };
 
-      setCustomers((prev) => [...prev, formattedCustomer].sort((a, b) => a.name.localeCompare(b.name)));
-
       return formattedCustomer;
     },
     [supabase, toast]
@@ -91,15 +108,16 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
 
   const getCustomerById = useCallback(
     (id: string) => {
+      // This will only find customers on the current page.
+      // For a robust solution, this might need to fetch from DB if not found.
       return customers.find((c) => c.id === id);
     },
     [customers]
   );
 
-  // Fungsi async untuk update pelanggan
   const updateCustomer = useCallback(
     async (id: string, updates: UpdateCustomerInput): Promise<boolean> => {
-      const { error } = await supabase.from('customers').update(updates).eq('id', id);
+      const { error } = await supabase.from('customers').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
 
       if (error) {
         console.error('Error updating customer:', error);
@@ -108,13 +126,11 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
       }
 
       toast({ title: 'Sukses', description: 'Data pelanggan berhasil diperbarui.' });
-      fetchCustomers();
       return true;
     },
-    [supabase, toast, fetchCustomers]
+    [supabase, toast]
   );
 
-  // Fungsi async untuk hapus pelanggan
   const deleteCustomer = useCallback(
     async (id: string): Promise<boolean> => {
       const { error } = await supabase.from('customers').delete().eq('id', id);
@@ -124,16 +140,17 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: 'Error', description: 'Gagal menghapus pelanggan.', variant: 'destructive' });
         return false;
       }
-
-      // Pembaruan UI optimis: Hapus dari state lokal tanpa perlu fetch ulang
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
       toast({ title: 'Sukses', description: 'Pelanggan berhasil dihapus.' });
       return true;
     },
     [supabase, toast]
   );
 
-  return <CustomerContext.Provider value={{ customers, isLoading, addCustomer, getCustomerById, updateCustomer, deleteCustomer, fetchCustomers }}>{children}</CustomerContext.Provider>;
+  return (
+    <CustomerContext.Provider value={{ customers, isLoading, pageCount, fetchData, addCustomer, getCustomerById, updateCustomer, deleteCustomer }}>
+        {children}
+    </CustomerContext.Provider>
+  );
 };
 
 export const useCustomers = () => {

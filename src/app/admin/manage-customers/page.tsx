@@ -1,120 +1,64 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import type { ColumnDef } from '@tanstack/react-table';
+import { format, parseISO } from 'date-fns';
+import { id as LocaleID } from 'date-fns/locale';
+
+// Konteks & Tipe Data
 import { useCustomers } from '@/context/customer-context';
-import type { Customer } from '@/types';
 import { useAuth } from '@/context/auth-context';
-import { useRouter } from 'next/navigation';
+import type { Customer } from '@/types';
+import { useDebounce } from '@/hooks/use-debounce';
+
+// Komponen UI
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Users2, PlusCircle, Edit3, Trash2, Loader2, ShieldAlert, Eye } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { id as LocaleID } from 'date-fns/locale';
+import { DataTable, createSortableHeader } from '@/components/ui/data-table';
+import { Users2, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 
-// Skema validasi Zod (tidak ada perubahan signifikan)
-const customerFormSchema = z.object({
+// Skema Zod untuk validasi form
+const customerSchema = z.object({
   name: z.string().min(1, 'Nama pelanggan harus diisi'),
   phone: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
 });
+type CustomerFormValues = z.infer<typeof customerSchema>;
 
-type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
+// Komponen Halaman Utama
 export default function ManageCustomersPage() {
-  // Ambil isLoading dari context pelanggan dan auth
-  const { customers, isLoading: isLoadingCustomers, addCustomer, updateCustomer, deleteCustomer, fetchCustomers } = useCustomers();
+  const { customers, isLoading, pageCount, fetchData, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
-  const router = useRouter();
 
-  const [isPending, startTransition] = useTransition(); // Hook untuk loading aksi
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
 
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
-    defaultValues: { name: '', phone: '', address: '', notes: '' },
-  });
+  const [nameFilter, setNameFilter] = useState('');
+  const debouncedNameFilter = useDebounce(nameFilter, 500);
+  const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
 
-  // Proteksi rute (sudah benar)
-  useEffect(() => {
-    if (!isLoadingAuth && (!currentUser || currentUser.role !== 'admin')) {
-      router.replace('/');
-    }
-  }, [currentUser, isLoadingAuth, router]);
+  const columns: ColumnDef<Customer>[] = React.useMemo(
+    () => getColumns({ onSuccess: triggerRefresh, addCustomer, updateCustomer, deleteCustomer }),
+    [triggerRefresh, addCustomer, updateCustomer, deleteCustomer]
+  );
 
-  // Mengisi form saat dialog edit dibuka
-  useEffect(() => {
-    if (isDialogOpen && editingCustomer) {
-      form.reset({
-        name: editingCustomer.name,
-        phone: editingCustomer.phone || '',
-        address: editingCustomer.address || '',
-        notes: editingCustomer.notes || '',
-      });
-    } else {
-      form.reset({ name: '', phone: '', address: '', notes: '' });
-    }
-  }, [editingCustomer, isDialogOpen, form]);
-
-  useEffect(() => {
-    if (currentUser?.role === 'admin') {
-      fetchCustomers();
-    }
-  }, [currentUser?.role, fetchCustomers]);
-
-  const handleOpenDialog = (customer?: Customer) => {
-    setEditingCustomer(customer || null);
-    setIsDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => setIsDialogOpen(false);
-
-  // Fungsi onSubmit yang sudah async
-  const onSubmit = (data: CustomerFormValues) => {
-    startTransition(async () => {
-      const success = editingCustomer ? await updateCustomer(editingCustomer.id, data) : await addCustomer(data);
-
-      if (success) {
-        handleCloseDialog();
-      }
-      // Toast sudah ditangani di dalam context
-    });
-  };
-
-  // Fungsi handleDelete yang menggunakan useTransition
-  const handleDelete = (customerId: string) => {
-    startTransition(async () => {
-      await deleteCustomer(customerId);
-    });
-  };
-
-  // Gabungkan semua state loading
-  const isLoading = isLoadingAuth || isLoadingCustomers;
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  if (isLoadingAuth) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-
   if (!currentUser || currentUser.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <p className="text-muted-foreground">Akses Ditolak. Hanya untuk Admin.</p>
+        <ShieldAlert className="h-12 w-12 text-destructive" /><p>Akses Ditolak.</p>
       </div>
     );
   }
@@ -124,147 +68,123 @@ export default function ManageCustomersPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-2xl font-headline flex items-center">
-              <Users2 className="mr-3 h-7 w-7" /> Kelola Pelanggan
-            </CardTitle>
-            <CardDescription>Lihat, tambah, ubah, dan hapus profil pelanggan.</CardDescription>
+            <CardTitle className="text-2xl font-headline flex items-center"><Users2 className="mr-3 h-7 w-7" /> Kelola Pelanggan</CardTitle>
+            <CardDescription>Tambah, lihat, ubah, dan hapus profil pelanggan.</CardDescription>
           </div>
-          <Button onClick={() => handleOpenDialog()}>
-            <PlusCircle className="mr-2 h-5 w-5" /> Tambah Pelanggan
-          </Button>
+          <CustomerDialog onSuccess={triggerRefresh} addCustomer={addCustomer} updateCustomer={updateCustomer}>
+            <Button><PlusCircle className="mr-2 h-5 w-5" /> Tambah Pelanggan Baru</Button>
+          </CustomerDialog>
         </CardHeader>
-        <CardContent>
-          {customers.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Belum ada pelanggan. Tambah pelanggan baru untuk memulai.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Telepon</TableHead>
-                  <TableHead>Bergabung</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.phone || '-'}</TableCell>
-                    <TableCell>{format(parseISO(customer.createdAt), 'dd MMM yyyy', { locale: LocaleID })}</TableCell>
-                    <TableCell className="text-right space-x-2 space-y-2">
-                      <Button variant="outline" size="sm" onClick={() => handleOpenDialog(customer)}>
-                        <Edit3 className="mr-1 h-4 w-4" /> Ubah
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/manage-customers/${customer.id}`}>
-                          <Eye className="mr-1 h-4 w-4" /> Lihat
-                        </Link>
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" disabled={isPending}>
-                            <Trash2 className="mr-1 h-4 w-4" /> Hapus
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Aksi ini akan menghapus pelanggan <strong>{customer.name}</strong> secara permanen.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(customer.id)}>Hapus</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent className='max-w-full overflow-x-scroll'>
+          <DataTable columns={columns} data={customers} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+            <div className="flex items-center gap-4">
+              <Input placeholder="Filter berdasarkan nama..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
+            </div>
+          </DataTable>
         </CardContent>
       </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              {editingCustomer ? <Edit3 className="mr-2 h-5 w-5" /> : <PlusCircle className="mr-2 h-5 w-5" />}
-              {editingCustomer ? 'Ubah Data Pelanggan' : 'Tambah Pelanggan Baru'}
-            </DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-              {/* FormField untuk 'name', 'phone', 'email', 'address', 'notes' */}
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Pelanggan</FormLabel>
-                    <FormControl>
-                      <Input placeholder="" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>No. Telepon (Opsional)</FormLabel>
-                    <FormControl>
-                      <Input type="tel" placeholder="cth: 081234567890" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Alamat (Opsional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Alamat pelanggan" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Catatan (Opsional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Catatan untuk pelanggan" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* ... tambahkan field lain jika perlu ... */}
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                  Batal
-                </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : editingCustomer ? 'Simpan Perubahan' : 'Tambah Pelanggan'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </div>
+  );
+}
+
+// --- Definisi Kolom untuk DataTable ---
+interface GetColumnsProps {
+  onSuccess: () => void;
+  addCustomer: (data: CustomerFormValues) => Promise<Customer | null>;
+  updateCustomer: (id: string, data: CustomerFormValues) => Promise<boolean>;
+  deleteCustomer: (id: string) => Promise<boolean>;
+}
+
+const getColumns = ({ onSuccess, addCustomer, updateCustomer, deleteCustomer }: GetColumnsProps): ColumnDef<Customer>[] => [
+  { accessorKey: 'name', header: ({ column }) => createSortableHeader(column, 'Nama'), cell: ({ row }) => <div className="font-medium">{row.original.name}</div> },
+  { accessorKey: 'phone', header: ({ column }) => createSortableHeader(column, 'Telepon'), cell: ({ row }) => row.original.phone || '-' },
+  { accessorKey: 'createdAt', header: ({ column }) => createSortableHeader(column, 'Bergabung'), cell: ({ row }) => format(parseISO(row.original.createdAt), 'dd MMM yyyy', { locale: LocaleID }) },
+  {
+    id: 'actions',
+    cell: ({ row }) => {
+      const customer = row.original;
+      return (
+        <div className="text-right space-x-2">
+          <CustomerDialog item={customer} onSuccess={onSuccess} updateCustomer={updateCustomer} addCustomer={addCustomer}>
+            <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
+          </CustomerDialog>
+          <DeleteDialog item={customer} onSuccess={onSuccess} deleteCustomer={deleteCustomer} />
+        </div>
+      );
+    },
+  },
+];
+
+// --- Sub-komponen untuk Dialog Add/Edit ---
+interface CustomerDialogProps {
+  children: React.ReactNode;
+  item?: Customer;
+  onSuccess: () => void;
+  addCustomer: (data: CustomerFormValues) => Promise<Customer | null>;
+  updateCustomer: (id: string, data: CustomerFormValues) => Promise<boolean>;
+}
+
+function CustomerDialog({ children, item, onSuccess, addCustomer, updateCustomer }: CustomerDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const defaultValues = React.useMemo(() => ({ name: item?.name || '', phone: item?.phone || '', address: item?.address || '', notes: item?.notes || '' }), [item]);
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerSchema),
+    defaultValues,
+  });
+
+  useEffect(() => { form.reset(defaultValues); }, [item, open, form, defaultValues]);
+
+  const onSubmit = (data: CustomerFormValues) => {
+    startTransition(async () => {
+      const success = item ? await updateCustomer(item.id, data) : await addCustomer(data);
+      if (success) { setOpen(false); onSuccess(); }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{item ? 'Ubah Data Pelanggan' : 'Tambah Pelanggan Baru'}</DialogTitle></DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nama</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telepon</FormLabel><FormControl><Input type="tel" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Alamat</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Catatan</FormLabel><FormControl><Textarea {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Simpan'}</Button></DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --- Sub-komponen untuk AlertDialog Delete ---
+interface DeleteDialogProps {
+  item: Customer;
+  onSuccess: () => void;
+  deleteCustomer: (id: string) => Promise<boolean>;
+}
+
+function DeleteDialog({ item, onSuccess, deleteCustomer }: DeleteDialogProps) {
+  const [isPending, startTransition] = useTransition();
+  const handleDelete = () => {
+    startTransition(async () => {
+      const success = await deleteCustomer(item.id);
+      if (success) onSuccess();
+    });
+  };
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle><AlertDialogDescription>Ini akan menghapus pelanggan <strong>{item.name}</strong> secara permanen.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleDelete} disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Hapus'}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

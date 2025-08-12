@@ -1,9 +1,8 @@
-
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useTransactions } from '@/context/transaction-context';
+import { getAllTransactions } from './actions';
 import type { Transaction } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,11 +11,18 @@ import { ScrollText, Eye, Settings, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function TransactionsPage() {
-  const { transactions,isLoading,fetchTransactions } = useTransactions();
-  // Fetch transactions on mount
-  React.useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getAllTransactions().then(({ data }) => {
+      if (data) {
+        setTransactions(data);
+      }
+      setIsLoading(false);
+    });
+  }, []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
