@@ -28,7 +28,7 @@ interface InventoryComboboxProps {
 const newItemSchema = z.object({
   name: z.string().min(1, 'Nama barang harus diisi'),
   sellingPrice: z.coerce.number().min(0, 'Harga jual harus diisi'),
-  purchasePrice: z.coerce.number().min(0, 'Harga beli harus diisi').optional(),
+  purchasePrice: z.coerce.number().min(0, 'Harga beli harus diisi'),
   stockQuantity: z.coerce.number().int().min(0, 'Stok awal harus diisi'),
   sku: z.string().optional(),
 });

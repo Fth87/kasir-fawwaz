@@ -17,7 +17,7 @@ interface TransactionState {
   fetchData: (pagination: PaginationState, sorting: SortingState, filters: { customerName?: string, type?: TransactionTypeFilter }) => Promise<{ error: Error | null }>;
   addTransaction: (transactionData: AddTransactionInput) => Promise<{ success: boolean; error: Error | null }>;
   deleteTransaction: (transactionId: string) => Promise<{ success: boolean; error: Error | null }>;
-  updateTransactionDetails: (transactionId: string, updates: Partial<Transaction>) => Promise<{ success: boolean; error: Error | null }>;
+  updateTransactionDetails: (transactionId: string, updates: any) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 export const useTransactionStore = create<TransactionState>((set) => ({

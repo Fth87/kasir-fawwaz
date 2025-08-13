@@ -74,7 +74,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
 
     set({ settings: finalSettings as StoreSettings });
-    return { success: true, successMessage: "Pengaturan toko berhasil diperbarui." };
+    return { success: true, successMessage: "Pengaturan toko berhasil diperbarui.", error: null };
   },
 }));
 
