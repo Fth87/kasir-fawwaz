@@ -31,7 +31,11 @@ export default function ManageAccountsPage() {
     (state) => ({ users: state.users, isLoading: state.isLoading, pageCount: state.pageCount }),
     shallow
   );
-  const { fetchData, addUser, updateUser, deleteUser } = useAccountStore.getState();
+  const fetchData = useAccountStore((state) => state.fetchData);
+  const addUser = useAccountStore((state) => state.addUser);
+  const updateUser = useAccountStore((state) => state.updateUser);
+  const deleteUser = useAccountStore((state) => state.deleteUser);
+
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 
@@ -41,17 +45,6 @@ export default function ManageAccountsPage() {
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
-
-  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState) => {
-    const { error } = await fetchData(pagination, sorting);
-    if (error) {
-      toast({
-        title: 'Error Memuat Data',
-        description: 'Gagal memuat data pengguna. Silakan coba lagi.',
-        variant: 'destructive',
-      });
-    }
-  }, [fetchData, toast]);
 
   const columns: ColumnDef<UserData>[] = React.useMemo(
     () => getColumns({
@@ -87,7 +80,22 @@ export default function ManageAccountsPage() {
           </AccountDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={users} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable
+            columns={columns}
+            data={users}
+            pageCount={pageCount}
+            fetchData={fetchData}
+            onFetchError={(error) => {
+              toast({
+                title: 'Error Memuat Data',
+                description: error.message || 'Gagal memuat data pengguna.',
+                variant: 'destructive',
+              });
+            }}
+            isLoading={isLoading}
+            refreshTrigger={refreshTrigger}
+            filters={filters}
+          >
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan email..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>

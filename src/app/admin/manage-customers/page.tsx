@@ -31,7 +31,11 @@ export default function ManageCustomersPage() {
     (state) => ({ customers: state.customers, isLoading: state.isLoading, pageCount: state.pageCount }),
     shallow
   );
-  const { fetchData, addCustomer, updateCustomer, deleteCustomer } = useCustomerStore.getState();
+  const fetchData = useCustomerStore((state) => state.fetchData);
+  const addCustomer = useCustomerStore((state) => state.addCustomer);
+  const updateCustomer = useCustomerStore((state) => state.updateCustomer);
+  const deleteCustomer = useCustomerStore((state) => state.deleteCustomer);
+
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 
@@ -41,17 +45,6 @@ export default function ManageCustomersPage() {
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
-
-  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, filters: { name?: string; }) => {
-    const { error } = await fetchData(pagination, sorting, filters);
-    if (error) {
-      toast({
-        title: 'Error Memuat Data',
-        description: 'Gagal memuat data pelanggan. Silakan coba lagi.',
-        variant: 'destructive',
-      });
-    }
-  }, [fetchData, toast]);
 
   const columns: ColumnDef<Customer>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, addCustomer, updateCustomer, deleteCustomer }),
@@ -82,7 +75,22 @@ export default function ManageCustomersPage() {
           </CustomerDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={customers} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable
+            columns={columns}
+            data={customers}
+            pageCount={pageCount}
+            fetchData={fetchData}
+            onFetchError={(error) => {
+              toast({
+                title: 'Error Memuat Data',
+                description: error.message || 'Gagal memuat data pelanggan.',
+                variant: 'destructive',
+              });
+            }}
+            isLoading={isLoading}
+            refreshTrigger={refreshTrigger}
+            filters={filters}
+          >
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>

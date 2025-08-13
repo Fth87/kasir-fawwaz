@@ -12,11 +12,13 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   pageCount: number;
-  fetchData: (pagination: PaginationState, sorting: SortingState, filters: Record<string, any>) => void;
+  // fetchData now can return a promise with an error object
+  fetchData: (pagination: PaginationState, sorting: SortingState, filters: Record<string, any>) => Promise<{ error: Error | null } | void>;
+  onFetchError?: (error: Error) => void; // Optional error handler
   isLoading: boolean;
   refreshTrigger: number;
   filters: Record<string, any>;
-  children?: React.ReactNode; // To allow passing filter components
+  children?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -24,6 +26,7 @@ export function DataTable<TData, TValue>({
   data,
   pageCount,
   fetchData,
+  onFetchError,
   isLoading,
   refreshTrigger,
   filters,
@@ -35,10 +38,16 @@ export function DataTable<TData, TValue>({
     pageSize: 10,
   });
 
-  // Panggil fetchData setiap kali ada perubahan
+  // Call fetchData and handle potential errors
   useEffect(() => {
-    fetchData(pagination, sorting, filters);
-  }, [pagination, sorting, fetchData, refreshTrigger, filters]);
+    const performFetch = async () => {
+      const result = await fetchData(pagination, sorting, filters);
+      if (result && result.error && onFetchError) {
+        onFetchError(result.error);
+      }
+    };
+    performFetch();
+  }, [pagination, sorting, fetchData, onFetchError, refreshTrigger, filters]);
 
   const table = useReactTable({
     data,
@@ -57,7 +66,7 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  // Reset ke halaman pertama saat filter berubah
+  // Reset to the first page when filters change
   useEffect(() => {
     if (pagination.pageIndex !== 0) {
       table.setPageIndex(0);

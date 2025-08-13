@@ -54,7 +54,11 @@ export default function ManageServicesPage() {
     (state) => ({ transactions: state.transactions, isLoading: state.isLoading, pageCount: state.pageCount }),
     shallow
   );
-  const { fetchData, addTransaction, updateTransactionDetails, deleteTransaction } = useTransactionStore.getState();
+  const fetchData = useTransactionStore((state) => state.fetchData);
+  const addTransaction = useTransactionStore((state) => state.addTransaction);
+  const updateTransactionDetails = useTransactionStore((state) => state.updateTransactionDetails);
+  const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
+
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 
@@ -66,17 +70,6 @@ export default function ManageServicesPage() {
   const filters = useMemo(() => ({ customerName: debouncedNameFilter, type: 'service' as TransactionTypeFilter }), [debouncedNameFilter]);
 
   const services = useMemo(() => transactions.filter(tx => tx.type === 'service') as ServiceTransaction[], [transactions]);
-
-  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, currentFilters: { customerName?: string, type?: TransactionTypeFilter }) => {
-    const { error } = await fetchData(pagination, sorting, currentFilters);
-    if (error) {
-      toast({
-        title: 'Error Memuat Data',
-        description: 'Gagal memuat data servis. Silakan coba lagi.',
-        variant: 'destructive',
-      });
-    }
-  }, [fetchData, toast]);
 
   const columns: ColumnDef<ServiceTransaction>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, updateService: updateTransactionDetails, deleteService: deleteTransaction }),
@@ -107,7 +100,22 @@ export default function ManageServicesPage() {
           </ServiceDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={services} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable
+            columns={columns}
+            data={services}
+            pageCount={pageCount}
+            fetchData={fetchData}
+            onFetchError={(error) => {
+              toast({
+                title: 'Error Memuat Data',
+                description: error.message || 'Gagal memuat data servis.',
+                variant: 'destructive',
+              });
+            }}
+            isLoading={isLoading}
+            refreshTrigger={refreshTrigger}
+            filters={filters}
+          >
              <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama pelanggan..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
