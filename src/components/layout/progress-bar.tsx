@@ -50,7 +50,7 @@ export function ProgressBar() {
   // Custom CSS to use the theme's accent color
   // This is a bit of a hack, but it's the simplest way to theme nprogress
   // without keeping a separate CSS file.
-  const accentColor = 'var(--accent)';
+  const accentColor = '#FFAB40'; // Hardcoded accent color
   const styles = (
     <style>{`
       #nprogress .bar {
