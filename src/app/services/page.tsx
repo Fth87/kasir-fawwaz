@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,7 +36,7 @@ type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 export default function RecordServicePage() {
   const { addTransaction } = useTransactionStore();
-  const { isLoading: isLoadingCustomers } = useCustomerStore();
+  const { isLoading: isLoadingCustomers, fetchData: fetchCustomers } = useCustomerStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,6 +51,10 @@ export default function RecordServicePage() {
       serviceFee: 0,
     },
   });
+
+  useEffect(() => {
+    void fetchCustomers({ pageIndex: 0, pageSize: 100 }, [], {});
+  }, [fetchCustomers]);
 
   const onSubmit = async (data: ServiceFormValues) => {
     setIsSubmitting(true);

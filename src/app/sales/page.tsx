@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,12 +36,17 @@ const saleFormSchema = z.object({
 type SaleFormValues = z.infer<typeof saleFormSchema>;
 
 export default function RecordSalePage() {
-  const {  isLoading: isLoadingCustomers } = useCustomerStore();
+  const {  isLoading: isLoadingCustomers, fetchData: fetchCustomers } = useCustomerStore();
   const { addTransaction } = useTransactionStore();
-  const {  isLoading: isLoadingInventory } = useInventoryStore();
+  const {  isLoading: isLoadingInventory, fetchData: fetchInventory } = useInventoryStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  
+  useEffect(() => {
+    void fetchCustomers({ pageIndex: 0, pageSize: 100 }, [], {});
+    void fetchInventory({ pageIndex: 0, pageSize: 100 }, [], {});
+  }, [fetchCustomers, fetchInventory]);
 
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(saleFormSchema),

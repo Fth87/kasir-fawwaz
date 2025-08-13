@@ -27,6 +27,7 @@ export default function RootLayout({
       <head>
       </head>
       <body className={`${ptSans.variable} font-body antialiased`} suppressHydrationWarning={true}>
+        <ProgressBar />
         <AppLayout>
           {children}
         </AppLayout>
