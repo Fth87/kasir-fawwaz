@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useRouter } from 'next/navigation';
 import { LogIn, Loader2, Smartphone } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
+import { useAuthStore } from '@/stores/auth.store';
+import { useToast } from '@/hooks/use-toast';
 
 // Skema validasi diubah dari username ke email
 const loginFormSchema = z.object({
@@ -21,8 +22,9 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const { login, isLoading } = useAuth();
+  const { login, isLoading } = useAuthStore();
   const router = useRouter();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -35,17 +37,27 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
-    const success = await login(data.email, data.password);
-    if (success) {
-      router.replace('/');
-      router.refresh();
-    } else {
+    const { error } = await login(data.email, data.password);
+
+    if (error) {
+      toast({
+        title: "Login Gagal",
+        description: error.message,
+        variant: "destructive",
+      });
       setIsSubmitting(false);
+    } else {
+      toast({
+        title: "Login Berhasil",
+        description: `Selamat datang kembali!`,
+      });
+      router.replace('/');
+      // No need to call router.refresh() here, the auth listener will update the state
     }
   };
 
-
-
+  // The main isLoading now comes from the store, which waits for the auth state to be known.
+  // We keep isSubmitting for the form button state.
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">

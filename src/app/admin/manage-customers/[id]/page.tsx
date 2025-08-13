@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 // Hooks & Server Actions
 import { getTransactionsByCustomerId } from '@/app/transactions/actions';
 import { getCustomerById } from '../actions';
-import { useAuth } from '@/context/auth-context';
+import { useAuthStore } from '@/stores/auth.store';
 
 // Types
 import type { Customer, Transaction } from '@/types';
@@ -31,7 +31,7 @@ const formatCurrency = (amount: number) => {
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);

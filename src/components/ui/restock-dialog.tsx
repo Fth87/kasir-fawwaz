@@ -4,8 +4,9 @@ import React, { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useInventory } from '@/context/inventory-context';
+import { useInventoryStore } from '@/stores/inventory.store';
 import type { InventoryItem } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,8 @@ interface RestockDialogProps {
 export function RestockDialog({ item, onSuccess }: RestockDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const { restockItem } = useInventory();
+  const { restockItem } = useInventoryStore();
+  const { toast } = useToast();
 
   const form = useForm<RestockFormValues>({
     resolver: zodResolver(restockSchema),
@@ -35,11 +37,21 @@ export function RestockDialog({ item, onSuccess }: RestockDialogProps) {
 
   const onSubmit = (data: RestockFormValues) => {
     startTransition(async () => {
-      const success = await restockItem(item.id, data.quantityToAdd);
+      const { success, error } = await restockItem(item.id, data.quantityToAdd);
       if (success) {
+        toast({
+          title: 'Stok Diperbarui',
+          description: `Stok untuk "${item.name}" berhasil ditambahkan.`,
+        });
         setOpen(false);
         form.reset();
         onSuccess(); // Panggil refresh
+      } else {
+        toast({
+          title: 'Gagal Restock',
+          description: error?.message || 'Terjadi kesalahan saat memperbarui stok.',
+          variant: 'destructive',
+        });
       }
     });
   };

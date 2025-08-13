@@ -9,23 +9,21 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useTransactions } from '@/context/transaction-context';
-import { useInventory } from '@/context/inventory-context';
+import { useTransactionStore } from '@/stores/transaction.store';
+import { useInventoryStore } from '@/stores/inventory.store';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { CustomerCombobox } from '@/components/ui/customer-combobox';
-import { useCustomers } from '@/context/customer-context';
-import { InventoryCombobox } from '@/components/ui/inventory-combobox'; // Import Combobox baru
+import { useCustomerStore } from '@/stores/customer.store';
+import { InventoryCombobox } from '@/components/ui/inventory-combobox';
 
-// Skema validasi untuk satu item penjualan
 const saleItemSchema = z.object({
   name: z.string().min(1, 'Nama barang harus diisi'),
   quantity: z.coerce.number().int().min(1, 'Jumlah minimal 1'),
   pricePerItem: z.coerce.number().min(0, 'Harga tidak boleh negatif'),
 });
 
-// Skema validasi untuk keseluruhan form penjualan
 const saleFormSchema = z.object({
   customer: z.object({
     id: z.string().optional(),
@@ -38,9 +36,9 @@ const saleFormSchema = z.object({
 type SaleFormValues = z.infer<typeof saleFormSchema>;
 
 export default function RecordSalePage() {
-  const {  isLoading: isLoadingCustomers } = useCustomers();
-  const { addTransaction } = useTransactions();
-  const {  isLoading: isLoadingInventory } = useInventory();
+  const {  isLoading: isLoadingCustomers } = useCustomerStore();
+  const { addTransaction } = useTransactionStore();
+  const {  isLoading: isLoadingInventory } = useInventoryStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -59,43 +57,31 @@ export default function RecordSalePage() {
     name: 'items',
   });
 
-  // Fungsi untuk mengisi harga otomatis saat nama barang diubah
-  // const handleItemNameChange = (index: number, name: string) => {
-  //   const inventoryItem = findItemByName(name);
-  //   if (inventoryItem) {
-  //     form.setValue(`items.${index}.pricePerItem`, inventoryItem.sellingPrice, { shouldValidate: true });
-  //   }
-  // };
-
-  // Fungsi untuk menangani submit form
   const onSubmit = async (data: SaleFormValues) => {
     setIsLoading(true);
-    try {
-      // Panggil addTransaction. Pengurangan stok terjadi otomatis di database via trigger.
-      const success = await addTransaction({
-        type: 'sale',
-        customerName: data.customer.name,
-        customerId: data.customer.id,
-        paymentMethod: data.paymentMethod,
-        items: data.items,
-      });
+    const { success, error } = await addTransaction({
+      type: 'sale',
+      customerName: data.customer.name,
+      customerId: data.customer.id,
+      paymentMethod: data.paymentMethod,
+      items: data.items.map(item => ({
+        ...item,
+        // The `total` property is not part of the form, so we calculate it here
+        total: item.quantity * item.pricePerItem,
+      })),
+    });
 
-      if (success) {
-        toast({
-          title: 'Penjualan Tercatat',
-          description: 'Transaksi berhasil direkam & stok otomatis diperbarui.',
-        });
-        form.reset();
-        router.push('/transactions');
-      } else {
-        toast({ title: 'Error', description: 'Gagal merekam transaksi.', variant: 'destructive' });
-      }
-    } catch (error) {
-      console.error('Error saat merekam penjualan:', error);
-      toast({ title: 'Error', description: 'Terjadi kesalahan.', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
+    if (success) {
+      toast({
+        title: 'Penjualan Tercatat',
+        description: 'Transaksi berhasil direkam & stok otomatis diperbarui.',
+      });
+      form.reset();
+      router.push('/transactions');
+    } else {
+      toast({ title: 'Error', description: error?.message || 'Gagal merekam transaksi.', variant: 'destructive' });
     }
+    setIsLoading(false);
   };
 
   const grandTotal = form.watch('items').reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
@@ -123,22 +109,19 @@ export default function RecordSalePage() {
               )}
             />
 
-            {/* Bagian Daftar Barang */}
             <div className="space-y-4">
               <FormLabel>Barang yang Dijual</FormLabel>
               {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-12 gap-3 items-start p-4 border rounded-lg">
                   <FormField
                     control={form.control}
-                    name={`items.${index}.name`} // Tetap terhubung ke field 'name'
+                    name={`items.${index}.name`}
                     render={({ field }) => (
                       <FormItem className="col-span-12 md:col-span-5">
                         <FormLabel className="sr-only">Nama Barang</FormLabel>
                         <FormControl>
                           <InventoryCombobox
-                            // 'value' adalah nilai nama barang yang sudah terpilih di form
                             value={field.value}
-                            // 'onSelect' akan memperbarui field 'name' dan 'pricePerItem'
                             onSelect={(selectedItem) => {
                               form.setValue(`items.${index}.name`, selectedItem.name);
                               form.setValue(`items.${index}.pricePerItem`, selectedItem.price);

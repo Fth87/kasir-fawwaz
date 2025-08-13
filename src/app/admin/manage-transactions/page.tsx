@@ -4,14 +4,16 @@ import React, { useState, useTransition, useCallback, useMemo } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
 
-// Konteks & Tipe Data
-import { useTransactions } from '@/context/transaction-context';
-import { useAuth } from '@/context/auth-context';
+// Stores & Types
+import { useTransactionStore } from '@/stores/transaction.store';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Transaction, TransactionTypeFilter } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
-// Komponen UI
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,10 +30,11 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
-// Komponen Halaman Utama
+// Main Page Component
 export default function ManageTransactionsPage() {
-  const { transactions, isLoading, pageCount, fetchData, deleteTransaction } = useTransactions();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { transactions, isLoading, pageCount, fetchData, deleteTransaction } = useTransactionStore();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
+  const { toast } = useToast();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
@@ -40,6 +43,17 @@ export default function ManageTransactionsPage() {
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all');
   const filters = useMemo(() => ({ customerName: debouncedNameFilter, type: typeFilter }), [debouncedNameFilter, typeFilter]);
+
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, filters: { customerName?: string, type?: TransactionTypeFilter }) => {
+    const { error } = await fetchData(pagination, sorting, filters);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data transaksi. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
 
   const columns: ColumnDef<Transaction>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, deleteTransaction }),
@@ -65,7 +79,7 @@ export default function ManageTransactionsPage() {
             <CardDescription>Lihat dan kelola semua jenis transaksi yang tercatat dalam sistem.</CardDescription>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={transactions} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable columns={columns} data={transactions} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama pelanggan..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
               <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as TransactionTypeFilter)}>
@@ -87,10 +101,10 @@ export default function ManageTransactionsPage() {
   );
 }
 
-// --- Definisi Kolom untuk DataTable ---
+// Columns Definition
 interface GetColumnsProps {
   onSuccess: () => void;
-  deleteTransaction: (id: string) => Promise<boolean>;
+  deleteTransaction: (id: string) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
 const getColumns = ({ onSuccess, deleteTransaction }: GetColumnsProps): ColumnDef<Transaction>[] => [
@@ -125,7 +139,7 @@ const getColumns = ({ onSuccess, deleteTransaction }: GetColumnsProps): ColumnDe
   },
 ];
 
-// --- Sub-komponen untuk Dialog View Details ---
+// View Details Dialog
 function ViewDetailsDialog({ transaction }: { transaction: Transaction }) {
     const [open, setOpen] = useState(false);
     return (
@@ -143,19 +157,26 @@ function ViewDetailsDialog({ transaction }: { transaction: Transaction }) {
     );
 }
 
-// --- Sub-komponen untuk AlertDialog Delete ---
+// Delete Dialog
 interface DeleteDialogProps {
   item: Transaction;
   onSuccess: () => void;
-  deleteTransaction: (id: string) => Promise<boolean>;
+  deleteTransaction: (id: string) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
 function DeleteDialog({ item, onSuccess, deleteTransaction }: DeleteDialogProps) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
   const handleDelete = () => {
     startTransition(async () => {
-      const success = await deleteTransaction(item.id);
-      if (success) onSuccess();
+      const { success, error } = await deleteTransaction(item.id);
+      if (success) {
+        toast({ title: 'Sukses', description: 'Transaksi berhasil dihapus.' });
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: error?.message || 'Gagal menghapus transaksi.', variant: 'destructive' });
+      }
     });
   };
   return (

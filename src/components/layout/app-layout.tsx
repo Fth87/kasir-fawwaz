@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -37,7 +37,8 @@ import {
   Archive,
   Users2,
 } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
+import { useAuthStore } from '@/stores/auth.store';
+import { useToast } from '@/hooks/use-toast';
 import Loading from '@/app/loading';
 
 const mainNavItems = [
@@ -61,7 +62,27 @@ const adminNavItems = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, isLoading, logout } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user, isLoading, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    const { error } = await logout();
+    if (error) {
+      toast({
+        title: "Logout Gagal",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Logout Berhasil",
+        description: "Anda telah berhasil keluar.",
+      });
+      router.push('/login');
+    }
+  };
+
   if (isLoading) {
     return <Loading />;
   }
@@ -147,7 +168,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <SidebarSeparator className="my-1 group-data-[collapsible=icon]:hidden" />
           <SidebarMenu>
             <SidebarMenuItem>
-              <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2" onClick={logout}>
+              <Button variant="ghost" className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2" onClick={handleLogout}>
                 <LogOut className="h-5 w-5 shrink-0" />
                 <span className="group-data-[collapsible=icon]:hidden">Logout</span>
               </Button>

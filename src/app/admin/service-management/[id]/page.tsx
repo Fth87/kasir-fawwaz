@@ -1,15 +1,15 @@
 "use client";
 
-import React,  {  useEffect, useState, useTransition } from 'react';
+import React,  {  useEffect, useState, useTransition, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-// Hooks & Server Actions
-import { useTransactionDispatch } from '@/context/transaction-context';
+// Stores & Actions
+import { useTransactionStore } from '@/stores/transaction.store';
 import { getTransactionById } from '@/app/transactions/actions';
-import { useAuth } from '@/context/auth-context';
+import { useAuthStore } from '@/stores/auth.store';
 import { useToast } from '@/hooks/use-toast';
 
 // Types & Utils
@@ -37,8 +37,8 @@ export default function ManageServiceProgressPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { updateTransactionDetails } = useTransactionDispatch();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { updateTransactionDetails } = useTransactionStore();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   
   const [isPending, startTransition] = useTransition();
   const [service, setService] = useState<ServiceTransaction | null | undefined>(undefined);
@@ -50,7 +50,7 @@ export default function ManageServiceProgressPage() {
 
   const transactionId = params.id as string;
 
-  useEffect(() => {
+  const refetchService = useCallback(() => {
     if (transactionId) {
         getTransactionById(transactionId).then(({ data: tx, error }) => {
             if (tx && tx.type === 'service') {
@@ -63,6 +63,10 @@ export default function ManageServiceProgressPage() {
         });
     }
   }, [transactionId, form, toast]);
+
+  useEffect(() => {
+    refetchService();
+  }, [refetchService]);
 
   const onSubmit = (data: UpdateServiceFormValues) => {
     if (!service) return;
@@ -77,18 +81,16 @@ export default function ManageServiceProgressPage() {
         });
       }
 
-      const success = await updateTransactionDetails(service.id, {
-        status: data.status as ServiceStatusValue,
-        progressNotes: updatedProgressNotes,
+      const { success, error } = await updateTransactionDetails(service.id, {
+        details: { ...service, status: data.status as ServiceStatusValue, progressNotes: updatedProgressNotes }
       });
 
       if (success) {
         toast({ title: "Sukses", description: "Progres servis berhasil diperbarui." });
         form.setValue('newNote', '');
-        // Refetch data to show updated state
-        getTransactionById(transactionId).then(({ data: tx }) => {
-            if (tx && tx.type === 'service') setService(tx);
-        });
+        refetchService();
+      } else {
+        toast({ title: "Error", description: error?.message || "Gagal memperbarui progres.", variant: "destructive" });
       }
     });
   };

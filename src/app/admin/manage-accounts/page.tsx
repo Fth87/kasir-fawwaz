@@ -7,15 +7,17 @@ import * as z from 'zod';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
 
-// Konteks & Tipe Data
-import { useAccounts } from '@/context/account-context';
-import { useAuth } from '@/context/auth-context';
+// Stores & Types
+import { useAccountStore } from '@/stores/account.store';
+import { useAuthStore } from '@/stores/auth.store';
 import type { UserData } from './actions';
 import { UserRoles } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
-// Komponen UI
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Users, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 
-// Skema Zod untuk validasi form
+// Zod Schema
 const accountSchema = z.object({
   email: z.string().email('Format email tidak valid.'),
   role: z.enum(UserRoles),
@@ -35,10 +37,11 @@ const accountSchema = z.object({
 type AccountFormValues = z.infer<typeof accountSchema>;
 
 
-// Komponen Halaman Utama
+// Main Page Component
 export default function ManageAccountsPage() {
-  const { users, isLoading, pageCount, fetchData, addUser, updateUser, deleteUser } = useAccounts();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { users, isLoading, pageCount, fetchData, addUser, updateUser, deleteUser } = useAccountStore();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
+  const { toast } = useToast();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
@@ -46,6 +49,18 @@ export default function ManageAccountsPage() {
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
+
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState) => {
+    // Note: `filters` are not used by the API for this page, but keeping signature consistent
+    const { error } = await fetchData(pagination, sorting);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data pengguna. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
 
   const columns: ColumnDef<UserData>[] = React.useMemo(
     () => getColumns({
@@ -81,7 +96,7 @@ export default function ManageAccountsPage() {
           </AccountDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={users} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable columns={columns} data={users} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan email..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
@@ -92,11 +107,11 @@ export default function ManageAccountsPage() {
   );
 }
 
-// --- Definisi Kolom untuk DataTable ---
+// Columns Definition
 interface GetColumnsProps {
   onSuccess: () => void;
-  updateUser: (id: string, data: FormData) => Promise<boolean>;
-  deleteUser: (id: string) => Promise<boolean>;
+  updateUser: (id: string, data: FormData) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
+  deleteUser: (id: string) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
   currentUserId?: string;
 }
 
@@ -111,7 +126,7 @@ const getColumns = ({ onSuccess, updateUser, deleteUser, currentUserId }: GetCol
       const isCurrentUser = user.id === currentUserId;
       return (
         <div className="text-right space-x-2">
-          <AccountDialog item={user} onSuccess={onSuccess} updateUser={updateUser} addUser={async () => false} disabled={isCurrentUser}>
+          <AccountDialog item={user} onSuccess={onSuccess} updateUser={updateUser} addUser={async () => ({ success: false, error: "Not implemented" })} disabled={isCurrentUser}>
             <Button variant="outline" size="sm" disabled={isCurrentUser}><Edit className="h-4 w-4" /></Button>
           </AccountDialog>
           <DeleteDialog item={user} onSuccess={onSuccess} deleteUser={deleteUser} disabled={isCurrentUser} />
@@ -121,19 +136,20 @@ const getColumns = ({ onSuccess, updateUser, deleteUser, currentUserId }: GetCol
   },
 ];
 
-// --- Sub-komponen untuk Dialog Add/Edit ---
+// Add/Edit Dialog
 interface AccountDialogProps {
   children: React.ReactNode;
   item?: UserData;
   onSuccess: () => void;
-  addUser: (data: FormData) => Promise<boolean>;
-  updateUser: (id: string, data: FormData) => Promise<boolean>;
+  addUser: (data: FormData) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
+  updateUser: (id: string, data: FormData) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
   disabled?: boolean;
 }
 
 function AccountDialog({ children, item, onSuccess, addUser, updateUser, disabled }: AccountDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
@@ -150,8 +166,16 @@ function AccountDialog({ children, item, onSuccess, addUser, updateUser, disable
       formData.append('email', data.email);
       formData.append('role', data.role);
       if (data.password) formData.append('password', data.password);
-      const success = item ? await updateUser(item.id, formData) : await addUser(formData);
-      if (success) { setOpen(false); onSuccess(); }
+
+      const result = item ? await updateUser(item.id, formData) : await addUser(formData);
+
+      if (result.success) {
+        toast({ title: 'Sukses', description: result.successMessage });
+        setOpen(false);
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: result.error, variant: 'destructive' });
+      }
     });
   };
 
@@ -173,20 +197,27 @@ function AccountDialog({ children, item, onSuccess, addUser, updateUser, disable
   );
 }
 
-// --- Sub-komponen untuk AlertDialog Delete ---
+// Delete Dialog
 interface DeleteDialogProps {
   item: UserData;
   onSuccess: () => void;
-  deleteUser: (id: string) => Promise<boolean>;
+  deleteUser: (id: string) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
   disabled?: boolean;
 }
 
 function DeleteDialog({ item, onSuccess, deleteUser, disabled }: DeleteDialogProps) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
   const handleDelete = () => {
     startTransition(async () => {
-      const success = await deleteUser(item.id);
-      if (success) onSuccess();
+      const result = await deleteUser(item.id);
+      if (result.success) {
+        toast({ title: 'Sukses', description: result.successMessage });
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: result.error, variant: 'destructive' });
+      }
     });
   };
   return (

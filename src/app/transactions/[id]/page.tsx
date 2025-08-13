@@ -7,7 +7,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 
 // Hooks & Server Actions
 import { getTransactionById } from '../actions';
-import { useSettings } from '@/context/settings-context';
+import { useSettingsStore } from '@/stores/settings.store';
 
 // Types
 import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
@@ -26,7 +26,7 @@ const formatCurrency = (amount: number) => {
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
-  const { settings } = useSettings();
+  const { settings } = useSettingsStore();
   const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
