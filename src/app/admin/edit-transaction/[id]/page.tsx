@@ -36,7 +36,10 @@ const serviceEditSchema = z.object({
   type: z.literal('service'),
   serviceName: z.string().min(1, 'Service name is required'),
   customerName: z.string().optional(),
-  customerPhone: z.string().optional().refine((val) => !val || /^[0-9\s+-]+$/.test(val), { message: 'Invalid phone number format' }),
+  customerPhone: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^[0-9\s+-]+$/.test(val), { message: 'Invalid phone number format' }),
   customerAddress: z.string().optional(),
   serviceFee: z.coerce.number().min(0, 'Service fee must be non-negative'),
 });
@@ -94,24 +97,27 @@ export default function EditTransactionPage() {
     }
   }, [transactionId, form, toast]);
 
-
   const onSubmit = async (data: EditTransactionFormValues) => {
     if (!transaction) return;
     setIsLoading(true);
 
-    let updatePayload: Partial<Transaction> = {};
+    // let updatePayload: Partial<Transaction> = {};
+    let updatePayload: Partial<Transaction> & {
+      details?: any;
+      total_amount?: number;
+    } = {};
 
     if (data.type === 'sale' && transaction.type === 'sale') {
-        const saleData = data as Extract<EditTransactionFormValues, { type: 'sale' }>;
-        const itemsWithTotals = saleData.items.map((item, index) => {
-            return { ...item, id: item.id || crypto.randomUUID(), total: item.quantity * item.pricePerItem };
-        });
-        const grandTotal = itemsWithTotals.reduce((sum, i) => sum + i.total, 0);
-        updatePayload = { customerName: saleData.customerName, details: { items: itemsWithTotals }, total_amount: grandTotal };
+      const saleData = data as Extract<EditTransactionFormValues, { type: 'sale' }>;
+      const itemsWithTotals = saleData.items.map((item, index) => {
+        return { ...item, id: item.id || crypto.randomUUID(), total: item.quantity * item.pricePerItem };
+      });
+      const grandTotal = itemsWithTotals.reduce((sum, i) => sum + i.total, 0);
+      updatePayload = { customerName: saleData.customerName, details: { items: itemsWithTotals }, total_amount: grandTotal };
     } else if (data.type === 'service') {
-        updatePayload = { customerName: data.customerName, total_amount: data.serviceFee, details: { serviceName: data.serviceName, device: 'N/A', issueDescription: 'N/A' } };
+      updatePayload = { customerName: data.customerName, total_amount: data.serviceFee, details: { serviceName: data.serviceName, device: 'N/A', issueDescription: 'N/A' } };
     } else if (data.type === 'expense') {
-        updatePayload = { total_amount: data.amount, details: { description: data.description, category: data.category } };
+      updatePayload = { total_amount: data.amount, details: { description: data.description, category: data.category } };
     }
 
     const { success, error } = await updateTransactionDetails(transaction.id, updatePayload);
@@ -171,43 +177,215 @@ export default function EditTransactionPage() {
             <FormField control={form.control} name="type" render={({ field }) => <input type="hidden" {...field} />} />
             {transaction.type === 'sale' && (
               <>
-                <FormField control={form.control} name="customerName" render={({ field }) => ( <FormItem> <FormLabel>Customer Name (Optional)</FormLabel> <FormControl><Input placeholder="Enter customer name" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Customer Name (Optional)</FormLabel>{' '}
+                      <FormControl>
+                        <Input placeholder="Enter customer name" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
                 <Separator />
                 <FormLabel className="text-md font-medium">Items</FormLabel>
                 {fields.map((item, index) => (
                   <div key={item.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start p-4 border rounded-md relative">
-                    <FormField control={form.control} name={`items.${index}.name`} render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Item Name</FormLabel> <FormControl><Input placeholder="e.g., Phone Case" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name={`items.${index}.quantity`} render={({ field }) => ( <FormItem> <FormLabel>Quantity</FormLabel> <FormControl><Input type="number" placeholder="1" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={form.control} name={`items.${index}.pricePerItem`} render={({ field }) => ( <FormItem> <FormLabel>Price/Item (IDR)</FormLabel> <FormControl><Input type="number" placeholder="50000" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          {' '}
+                          <FormLabel>Item Name</FormLabel>{' '}
+                          <FormControl>
+                            <Input placeholder="e.g., Phone Case" {...field} />
+                          </FormControl>{' '}
+                          <FormMessage />{' '}
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.quantity`}
+                      render={({ field }) => (
+                        <FormItem>
+                          {' '}
+                          <FormLabel>Quantity</FormLabel>{' '}
+                          <FormControl>
+                            <Input type="number" placeholder="1" {...field} />
+                          </FormControl>{' '}
+                          <FormMessage />{' '}
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.pricePerItem`}
+                      render={({ field }) => (
+                        <FormItem>
+                          {' '}
+                          <FormLabel>Price/Item (IDR)</FormLabel>{' '}
+                          <FormControl>
+                            <Input type="number" placeholder="50000" {...field} />
+                          </FormControl>{' '}
+                          <FormMessage />{' '}
+                        </FormItem>
+                      )}
+                    />
                     <div className="text-sm md:col-span-3 mt-1">Item Total: IDR {calculateSaleItemTotal(index).toLocaleString('id-ID')}</div>
-                    {fields.length > 1 && ( <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="h-8 w-8 md:absolute md:top-3 md:right-3" aria-label="Remove item"> <Trash2 className="h-4 w-4" /> </Button> )}
+                    {fields.length > 1 && (
+                      <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="h-8 w-8 md:absolute md:top-3 md:right-3" aria-label="Remove item">
+                        {' '}
+                        <Trash2 className="h-4 w-4" />{' '}
+                      </Button>
+                    )}
                   </div>
                 ))}
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, pricePerItem: 0, total: 0, id: '' })} className="mt-2"> <PlusCircle className="mr-2 h-4 w-4" /> Add Item </Button>
-                {'items' in form.formState.errors && form.formState.errors.items && typeof form.formState.errors.items === 'object' && 'message' in form.formState.errors.items && ( <p className="text-sm font-medium text-destructive">{(form.formState.errors.items as any).message}</p> )}
+                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, pricePerItem: 0, total: 0, id: '' })} className="mt-2">
+                  {' '}
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Item{' '}
+                </Button>
+                {'items' in form.formState.errors && form.formState.errors.items && typeof form.formState.errors.items === 'object' && 'message' in form.formState.errors.items && (
+                  <p className="text-sm font-medium text-destructive">{(form.formState.errors.items as any).message}</p>
+                )}
                 <div className="text-right text-lg font-bold">Grand Total: IDR {calculateSaleGrandTotal().toLocaleString('id-ID')}</div>
               </>
             )}
             {transaction.type === 'service' && (
               <>
-                <FormField control={form.control} name="serviceName" render={({ field }) => ( <FormItem> <FormLabel>Service Name</FormLabel> <FormControl><Input placeholder="e.g., Screen Replacement" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="customerName" render={({ field }) => ( <FormItem> <FormLabel>Customer Name (Optional)</FormLabel> <FormControl><Input placeholder="Enter customer name" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="customerPhone" render={({ field }) => ( <FormItem> <FormLabel>Customer Phone (Optional)</FormLabel> <FormControl><Input type="tel" placeholder="e.g., 08123456789" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="customerAddress" render={({ field }) => ( <FormItem> <FormLabel>Customer Address (Optional)</FormLabel> <FormControl><Textarea placeholder="Enter customer address" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="serviceFee" render={({ field }) => ( <FormItem> <FormLabel>Service Fee (IDR)</FormLabel> <FormControl><Input type="number" placeholder="150000" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="serviceName"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Service Name</FormLabel>{' '}
+                      <FormControl>
+                        <Input placeholder="e.g., Screen Replacement" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Customer Name (Optional)</FormLabel>{' '}
+                      <FormControl>
+                        <Input placeholder="Enter customer name" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="customerPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Customer Phone (Optional)</FormLabel>{' '}
+                      <FormControl>
+                        <Input type="tel" placeholder="e.g., 08123456789" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="customerAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Customer Address (Optional)</FormLabel>{' '}
+                      <FormControl>
+                        <Textarea placeholder="Enter customer address" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="serviceFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Service Fee (IDR)</FormLabel>{' '}
+                      <FormControl>
+                        <Input type="number" placeholder="150000" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
               </>
             )}
             {transaction.type === 'expense' && (
               <>
-                <FormField control={form.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Description</FormLabel> <FormControl><Textarea placeholder="e.g., Electricity Bill" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="category" render={({ field }) => ( <FormItem> <FormLabel>Category (Optional)</FormLabel> <FormControl><Input placeholder="e.g., Utilities" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="amount" render={({ field }) => ( <FormItem> <FormLabel>Amount (IDR)</FormLabel> <FormControl><Input type="number" placeholder="100000" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Description</FormLabel>{' '}
+                      <FormControl>
+                        <Textarea placeholder="e.g., Electricity Bill" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Category (Optional)</FormLabel>{' '}
+                      <FormControl>
+                        <Input placeholder="e.g., Utilities" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      {' '}
+                      <FormLabel>Amount (IDR)</FormLabel>{' '}
+                      <FormControl>
+                        <Input type="number" placeholder="100000" {...field} />
+                      </FormControl>{' '}
+                      <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
               </>
             )}
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={() => router.back()}> <ArrowLeft className="mr-2 h-4 w-4" /> Cancel </Button>
-            <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}> {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit3 className="mr-2 h-4 w-4" />} Save Changes </Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              {' '}
+              <ArrowLeft className="mr-2 h-4 w-4" /> Cancel{' '}
+            </Button>
+            <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
+              {' '}
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit3 className="mr-2 h-4 w-4" />} Save Changes{' '}
+            </Button>
           </CardFooter>
         </form>
       </Form>
