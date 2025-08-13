@@ -49,6 +49,17 @@ export default function ManageTransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all');
   const filters = useMemo(() => ({ customerName: debouncedNameFilter, type: typeFilter }), [debouncedNameFilter, typeFilter]);
 
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, filters: { customerName?: string, type?: TransactionTypeFilter }) => {
+    const { error } = await fetchData(pagination, sorting, filters);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data transaksi. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
+
   const columns: ColumnDef<Transaction>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, deleteTransaction }),
     [triggerRefresh, deleteTransaction]
@@ -73,22 +84,7 @@ export default function ManageTransactionsPage() {
             <CardDescription>Lihat dan kelola semua jenis transaksi yang tercatat dalam sistem.</CardDescription>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable
-            columns={columns}
-            data={transactions}
-            pageCount={pageCount}
-            fetchData={fetchData}
-            onFetchError={(error) => {
-              toast({
-                title: 'Error Memuat Data',
-                description: error.message || 'Gagal memuat data transaksi.',
-                variant: 'destructive',
-              });
-            }}
-            isLoading={isLoading}
-            refreshTrigger={refreshTrigger}
-            filters={filters}
-          >
+          <DataTable columns={columns} data={transactions} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama pelanggan..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
               <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as TransactionTypeFilter)}>

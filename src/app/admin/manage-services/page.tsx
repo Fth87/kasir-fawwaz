@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
@@ -67,6 +64,17 @@ export default function ManageServicesPage() {
 
   const services = useMemo(() => transactions.filter(tx => tx.type === 'service') as ServiceTransaction[], [transactions]);
 
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, currentFilters: { customerName?: string, type?: TransactionTypeFilter }) => {
+    const { error } = await fetchData(pagination, sorting, currentFilters);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data servis. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
+
   const columns: ColumnDef<ServiceTransaction>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, updateService: updateTransactionDetails, deleteService: deleteTransaction }),
     [triggerRefresh, updateTransactionDetails, deleteTransaction]
@@ -96,22 +104,7 @@ export default function ManageServicesPage() {
           </ServiceDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable
-            columns={columns}
-            data={services}
-            pageCount={pageCount}
-            fetchData={fetchData}
-            onFetchError={(error) => {
-              toast({
-                title: 'Error Memuat Data',
-                description: error.message || 'Gagal memuat data servis.',
-                variant: 'destructive',
-              });
-            }}
-            isLoading={isLoading}
-            refreshTrigger={refreshTrigger}
-            filters={filters}
-          >
+          <DataTable columns={columns} data={services} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
              <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama pelanggan..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
