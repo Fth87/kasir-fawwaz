@@ -99,7 +99,7 @@ export default function EditTransactionPage() {
     if (!transaction) return;
     setIsLoading(true);
 
-    let updatePayload: Partial<Transaction> = {};
+    let updatePayload: any = {};
 
     if (data.type === 'sale' && transaction.type === 'sale') {
         const saleData = data as Extract<EditTransactionFormValues, { type: 'sale' }>;
