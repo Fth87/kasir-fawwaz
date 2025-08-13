@@ -4,6 +4,7 @@ import { PT_Sans } from 'next/font/google';
 import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
 import { Toaster } from '@/components/ui/toaster';
+import { ProgressBar } from '@/components/layout/progress-bar';
 
 const ptSans = PT_Sans({
   weight: ['400', '700'],
