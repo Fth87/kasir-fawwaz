@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useTransactionDispatch } from '@/context/transaction-context';
+import { useTransactionStore } from '@/stores/transaction.store';
 import { getTransactionById } from '@/app/transactions/actions';
 import type { Transaction, SaleItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -23,6 +23,7 @@ const saleItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
   pricePerItem: z.coerce.number().min(0, 'Price must be non-negative'),
+  total: z.coerce.number(),
 });
 
 const saleEditSchema = z.object({
@@ -54,7 +55,7 @@ export default function EditTransactionPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { updateTransactionDetails } = useTransactionDispatch();
+  const { updateTransactionDetails } = useTransactionStore();
   const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,7 +68,8 @@ export default function EditTransactionPage() {
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'items',
+    // This needs to be cast as `items` is not on all types
+    name: 'items' as 'items',
   });
 
   useEffect(() => {
@@ -102,23 +104,23 @@ export default function EditTransactionPage() {
     if (data.type === 'sale' && transaction.type === 'sale') {
         const saleData = data as Extract<EditTransactionFormValues, { type: 'sale' }>;
         const itemsWithTotals = saleData.items.map((item, index) => {
-            const originalItem = transaction.items[index];
-            return { ...item, id: originalItem?.id || crypto.randomUUID(), total: item.quantity * item.pricePerItem };
+            return { ...item, id: item.id || crypto.randomUUID(), total: item.quantity * item.pricePerItem };
         });
-        updatePayload = { ...saleData, items: itemsWithTotals };
+        const grandTotal = itemsWithTotals.reduce((sum, i) => sum + i.total, 0);
+        updatePayload = { customerName: saleData.customerName, details: { items: itemsWithTotals }, total_amount: grandTotal };
     } else if (data.type === 'service') {
-        updatePayload = { ...data };
+        updatePayload = { customerName: data.customerName, total_amount: data.serviceFee, details: { serviceName: data.serviceName, device: 'N/A', issueDescription: 'N/A' } };
     } else if (data.type === 'expense') {
-        updatePayload = { ...data };
+        updatePayload = { total_amount: data.amount, details: { description: data.description, category: data.category } };
     }
 
-    const success = await updateTransactionDetails(transaction.id, updatePayload);
+    const { success, error } = await updateTransactionDetails(transaction.id, updatePayload);
 
     if (success) {
       toast({ title: 'Transaction Updated', description: 'The transaction has been successfully updated.' });
       router.push(`/admin/manage-transactions`);
     } else {
-      toast({ title: 'Error', description: 'Failed to update transaction. Please try again.', variant: 'destructive' });
+      toast({ title: 'Error', description: error?.message || 'Failed to update transaction.', variant: 'destructive' });
     }
     setIsLoading(false);
   };
@@ -143,14 +145,14 @@ export default function EditTransactionPage() {
   }
 
   const calculateSaleItemTotal = (itemIndex: number) => {
-    const items = form.watch('items') as SaleItem[] | undefined;
+    const items = form.watch('items' as any) as SaleItem[] | undefined;
     if (!items || !items[itemIndex]) return 0;
     const item = items[itemIndex];
     return (item.quantity || 0) * (item.pricePerItem || 0);
   };
 
   const calculateSaleGrandTotal = () => {
-    const items = form.watch('items') as SaleItem[] | undefined;
+    const items = form.watch('items' as any) as SaleItem[] | undefined;
     if (!items) return 0;
     return items.reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
   };
@@ -181,8 +183,8 @@ export default function EditTransactionPage() {
                     {fields.length > 1 && ( <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} className="h-8 w-8 md:absolute md:top-3 md:right-3" aria-label="Remove item"> <Trash2 className="h-4 w-4" /> </Button> )}
                   </div>
                 ))}
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, pricePerItem: 0 })} className="mt-2"> <PlusCircle className="mr-2 h-4 w-4" /> Add Item </Button>
-                {'items' in form.formState.errors && form.formState.errors.items && typeof form.formState.errors.items === 'object' && 'message' in form.formState.errors.items && ( <p className="text-sm font-medium text-destructive">{(form.formState.errors.items).message}</p> )}
+                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1, pricePerItem: 0, total: 0, id: '' })} className="mt-2"> <PlusCircle className="mr-2 h-4 w-4" /> Add Item </Button>
+                {'items' in form.formState.errors && form.formState.errors.items && typeof form.formState.errors.items === 'object' && 'message' in form.formState.errors.items && ( <p className="text-sm font-medium text-destructive">{(form.formState.errors.items as any).message}</p> )}
                 <div className="text-right text-lg font-bold">Grand Total: IDR {calculateSaleGrandTotal().toLocaleString('id-ID')}</div>
               </>
             )}

@@ -13,14 +13,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { CustomerCombobox } from '@/components/ui/customer-combobox';
 
-// Hooks, Contexts & Utils
-import { useTransactionDispatch } from '@/context/transaction-context';
+// Stores & Hooks
+import { useTransactionStore } from '@/stores/transaction.store';
 import { useCustomerStore } from '@/stores/customer.store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Wrench, Loader2 } from 'lucide-react';
 
-// Skema validasi Zod untuk form servis
+// Zod Schema
 const serviceFormSchema = z.object({
   serviceName: z.string().min(1, 'Nama layanan harus diisi'),
   device: z.string().min(1, 'Nama/tipe perangkat harus diisi'),
@@ -35,7 +35,7 @@ const serviceFormSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 export default function RecordServicePage() {
-  const { addTransaction } = useTransactionDispatch();
+  const { addTransaction } = useTransactionStore();
   const { isLoading: isLoadingCustomers } = useCustomerStore();
   const { toast } = useToast();
   const router = useRouter();
@@ -54,30 +54,24 @@ export default function RecordServicePage() {
 
   const onSubmit = async (data: ServiceFormValues) => {
     setIsSubmitting(true);
-    try {
-      const success = await addTransaction({
-        type: 'service',
-        serviceName: data.serviceName,
-        customerName: data.customer.name,
-        customerId: data.customer.id,
-        device: data.device,
-        issueDescription: data.issueDescription,
-        serviceFee: data.serviceFee,
-      });
+    const { success, error } = await addTransaction({
+      type: 'service',
+      serviceName: data.serviceName,
+      customerName: data.customer.name,
+      customerId: data.customer.id,
+      device: data.device,
+      issueDescription: data.issueDescription,
+      serviceFee: data.serviceFee,
+    });
 
-      if (success) {
-        toast({ title: 'Servis Tercatat', description: 'Transaksi servis berhasil direkam.' });
-        form.reset();
-        router.push('/transactions');
-      } else {
-        toast({ title: 'Error', description: 'Gagal merekam servis.', variant: 'destructive' });
-      }
-    } catch (error) {
-      console.error('Error saat merekam servis:', error);
-      toast({ title: 'Error', description: 'Terjadi kesalahan.', variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
+    if (success) {
+      toast({ title: 'Servis Tercatat', description: 'Transaksi servis berhasil direkam.' });
+      form.reset();
+      router.push('/transactions');
+    } else {
+      toast({ title: 'Error', description: error?.message || 'Gagal merekam servis.', variant: 'destructive' });
     }
+    setIsSubmitting(false);
   };
 
   return (
@@ -97,7 +91,7 @@ export default function RecordServicePage() {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Nama Pelanggan</FormLabel>
-                  <CustomerCombobox value={field.value} onChange={field.onChange} isLoading={isLoadingCustomers} />
+                  <CustomerCombobox value={{...field.value, id: field.value.id || ''}} onChange={field.onChange} isLoading={isLoadingCustomers} />
                   <FormMessage />
                 </FormItem>
               )}
