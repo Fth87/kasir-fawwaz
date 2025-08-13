@@ -7,15 +7,17 @@ import * as z from 'zod';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
 
-// Konteks & Tipe Data
-import { useServices, NewServiceTransactionInput } from '@/context/service-context';
-import { useAuth } from '@/context/auth-context';
-import type { ServiceTransaction, ServiceStatusValue } from '@/types';
+// Stores & Types
+import { useTransactionStore } from '@/stores/transaction.store';
+import { useAuthStore } from '@/stores/auth.store';
+import type { ServiceTransaction, ServiceStatusValue, Transaction, TransactionTypeFilter } from '@/types';
 import { getServiceStatusLabel, ServiceStatusOptions } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
-// Komponen UI
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Settings, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 
-// Skema Zod untuk validasi form
+// Zod Schema
 const serviceSchema = z.object({
   customerName: z.string().min(1, 'Nama pelanggan harus diisi'),
   serviceName: z.string().min(1, 'Nama layanan harus diisi'),
@@ -39,27 +41,41 @@ const serviceSchema = z.object({
 });
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
-// Helper untuk format mata uang
+// Helper
 const formatCurrency = (amount: number | undefined | null) => {
   if (amount === undefined || amount === null) return '-';
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
-// Komponen Halaman Utama
+// Main Page Component
 export default function ManageServicesPage() {
-  const { services, isLoading, pageCount, fetchData, addService, updateService, deleteService } = useServices();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { transactions, isLoading, pageCount, fetchData, addTransaction, updateTransactionDetails, deleteTransaction } = useTransactionStore();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
+  const { toast } = useToast();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
 
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
-  const filters = useMemo(() => ({ customerName: debouncedNameFilter }), [debouncedNameFilter]);
+  const filters = useMemo(() => ({ customerName: debouncedNameFilter, type: 'service' as TransactionTypeFilter }), [debouncedNameFilter]);
+
+  const services = useMemo(() => transactions.filter(tx => tx.type === 'service') as ServiceTransaction[], [transactions]);
+
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, currentFilters: { customerName?: string, type?: TransactionTypeFilter }) => {
+    const { error } = await fetchData(pagination, sorting, currentFilters);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data servis. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
 
   const columns: ColumnDef<ServiceTransaction>[] = React.useMemo(
-    () => getColumns({ onSuccess: triggerRefresh, updateService, deleteService }),
-    [triggerRefresh, updateService, deleteService]
+    () => getColumns({ onSuccess: triggerRefresh, updateService: updateTransactionDetails, deleteService: deleteTransaction }),
+    [triggerRefresh, updateTransactionDetails, deleteTransaction]
   );
 
   if (isLoadingAuth) {
@@ -81,12 +97,12 @@ export default function ManageServicesPage() {
             <CardTitle className="text-2xl font-headline flex items-center"><Settings className="mr-3 h-7 w-7" /> Kelola Servis</CardTitle>
             <CardDescription>Tambah, lihat, dan kelola semua transaksi servis.</CardDescription>
           </div>
-          <ServiceDialog onSuccess={triggerRefresh} addService={addService} updateService={updateService}>
+          <ServiceDialog onSuccess={triggerRefresh} addService={addTransaction} updateService={updateTransactionDetails}>
             <Button><PlusCircle className="mr-2 h-5 w-5" /> Tambah Servis Baru</Button>
           </ServiceDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={services} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable columns={columns} data={services} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
              <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama pelanggan..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
@@ -97,26 +113,26 @@ export default function ManageServicesPage() {
   );
 }
 
-// --- Definisi Kolom untuk DataTable ---
+// Columns Definition
 interface GetColumnsProps {
   onSuccess: () => void;
-  updateService: (id: string, data: ServiceFormValues) => Promise<boolean>;
-  deleteService: (id: string) => Promise<boolean>;
+  updateService: (id: string, data: Partial<Transaction>) => Promise<{ success: boolean; error: Error | null; }>;
+  deleteService: (id: string) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
 const getColumns = ({ onSuccess, updateService, deleteService }: GetColumnsProps): ColumnDef<ServiceTransaction>[] => [
-  { accessorKey: 'created_at', header: ({ column }) => createSortableHeader(column, 'Tanggal'), cell: ({ row }) => format(parseISO(row.original.date), 'dd MMM yyyy', { locale: LocaleID }) },
-  { accessorKey: 'customer_name', header: ({ column }) => createSortableHeader(column, 'Pelanggan'), cell: ({ row }) => <div className="font-medium">{row.original.customerName}</div> },
+  { accessorKey: 'date', header: ({ column }) => createSortableHeader(column, 'Tanggal'), cell: ({ row }) => format(parseISO(row.original.date), 'dd MMM yyyy', { locale: LocaleID }) },
+  { accessorKey: 'customerName', header: ({ column }) => createSortableHeader(column, 'Pelanggan'), cell: ({ row }) => <div className="font-medium">{row.original.customerName}</div> },
   { accessorKey: 'serviceName', header: 'Layanan', cell: ({ row }) => row.original.serviceName },
   { accessorKey: 'status', header: ({ column }) => createSortableHeader(column, 'Status'), cell: ({ row }) => getServiceStatusLabel(row.original.status) },
-  { accessorKey: 'total_amount', header: ({ column }) => createSortableHeader(column, 'Biaya'), cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.serviceFee)}</div> },
+  { accessorKey: 'serviceFee', header: ({ column }) => createSortableHeader(column, 'Biaya'), cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.serviceFee)}</div> },
   {
     id: 'actions',
     cell: ({ row }) => {
       const service = row.original;
       return (
         <div className="text-right space-x-2">
-          <ServiceDialog item={service} onSuccess={onSuccess} updateService={updateService} addService={async () => false}>
+          <ServiceDialog item={service} onSuccess={onSuccess} updateService={updateService} addService={async () => ({ success: false, error: new Error("Not implemented") })}>
             <Button variant="outline" size="sm"><Edit className="h-4 w-4" /></Button>
           </ServiceDialog>
           <DeleteDialog item={service} onSuccess={onSuccess} deleteService={deleteService} />
@@ -126,18 +142,19 @@ const getColumns = ({ onSuccess, updateService, deleteService }: GetColumnsProps
   },
 ];
 
-// --- Sub-komponen untuk Dialog Add/Edit ---
+// Add/Edit Dialog
 interface ServiceDialogProps {
   children: React.ReactNode;
   item?: ServiceTransaction;
   onSuccess: () => void;
-  addService: (data: NewServiceTransactionInput) => Promise<boolean>;
-  updateService: (id: string, data: ServiceFormValues) => Promise<boolean>;
+  addService: (data: any) => Promise<{ success: boolean; error: Error | null; }>;
+  updateService: (id: string, data: any) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
 function ServiceDialog({ children, item, onSuccess, addService, updateService }: ServiceDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   const defaultValues = React.useMemo(() => ({
     customerName: item?.customerName || '',
@@ -158,8 +175,17 @@ function ServiceDialog({ children, item, onSuccess, addService, updateService }:
 
   const onSubmit = (data: ServiceFormValues) => {
     startTransition(async () => {
-      const success = item ? await updateService(item.id, data) : await addService({ ...data, type: 'service' });
-      if (success) { setOpen(false); onSuccess(); }
+      const result = item
+        ? await updateService(item.id, { details: { serviceName: data.serviceName, device: data.device, issueDescription: data.issueDescription, status: data.status }, customerName: data.customerName, customerId: data.customerId, total_amount: data.serviceFee })
+        : await addService({ ...data, type: 'service' });
+
+      if (result.success) {
+        toast({ title: 'Sukses', description: `Servis berhasil ${item ? 'diperbarui' : 'ditambahkan'}.` });
+        setOpen(false);
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: result.error?.message || 'Gagal menyimpan data servis.', variant: 'destructive' });
+      }
     });
   };
 
@@ -186,19 +212,26 @@ function ServiceDialog({ children, item, onSuccess, addService, updateService }:
   );
 }
 
-// --- Sub-komponen untuk AlertDialog Delete ---
+// Delete Dialog
 interface DeleteDialogProps {
   item: ServiceTransaction;
   onSuccess: () => void;
-  deleteService: (id: string) => Promise<boolean>;
+  deleteService: (id: string) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
 function DeleteDialog({ item, onSuccess, deleteService }: DeleteDialogProps) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
   const handleDelete = () => {
     startTransition(async () => {
-      const success = await deleteService(item.id);
-      if (success) onSuccess();
+      const { success, error } = await deleteService(item.id);
+      if (success) {
+        toast({ title: 'Sukses', description: `Servis untuk ${item.customerName} berhasil dihapus.` });
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: error?.message || 'Gagal menghapus servis.', variant: 'destructive' });
+      }
     });
   };
   return (

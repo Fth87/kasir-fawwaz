@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Check, ChevronsUpDown, PlusCircle, Loader2, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCustomers } from '@/context/customer-context';
+import { useCustomerStore } from '@/stores/customer.store';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
 // Tipe untuk props komponen
 interface CustomerComboboxProps {
@@ -32,7 +33,8 @@ const newCustomerSchema = z.object({
 type NewCustomerFormValues = z.infer<typeof newCustomerSchema>;
 
 export function CustomerCombobox({ value, onChange, isLoading = false }: CustomerComboboxProps) {
-  const { customers, addCustomer } = useCustomers();
+  const { customers, addCustomer } = useCustomerStore();
+  const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
@@ -55,14 +57,24 @@ export function CustomerCombobox({ value, onChange, isLoading = false }: Custome
 
   // Handler untuk menambah pelanggan baru dari dalam dialog
   const handleAddNewCustomer = async (data: NewCustomerFormValues) => {
-    const newCustomer = await addCustomer(data);
-    if (newCustomer) {
+    const { customer: newCustomer, error } = await addCustomer(data);
+    if (newCustomer && !error) {
+      toast({
+        title: 'Pelanggan Ditambahkan',
+        description: `Pelanggan "${newCustomer.name}" berhasil dibuat.`,
+      });
       // Otomatis pilih pelanggan yang baru dibuat
       onChange({ id: newCustomer.id, name: newCustomer.name });
       setDialogOpen(false);
       setOpen(false);
       form.reset();
       setSearchQuery('');
+    } else {
+      toast({
+        title: 'Gagal Menambahkan Pelanggan',
+        description: error?.message || 'Terjadi kesalahan.',
+        variant: 'destructive',
+      });
     }
   };
 

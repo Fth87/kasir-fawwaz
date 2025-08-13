@@ -15,7 +15,7 @@ import { CustomerCombobox } from '@/components/ui/customer-combobox';
 
 // Hooks, Contexts & Utils
 import { useTransactionDispatch } from '@/context/transaction-context';
-import { useCustomers } from '@/context/customer-context';
+import { useCustomerStore } from '@/stores/customer.store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Wrench, Loader2 } from 'lucide-react';
@@ -36,7 +36,7 @@ type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 export default function RecordServicePage() {
   const { addTransaction } = useTransactionDispatch();
-  const { isLoading: isLoadingCustomers } = useCustomers();
+  const { isLoading: isLoadingCustomers } = useCustomerStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);

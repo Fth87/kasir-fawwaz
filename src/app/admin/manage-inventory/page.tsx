@@ -7,14 +7,17 @@ import * as z from 'zod';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
+import type { DateRange } from 'react-day-picker';
 
-// Konteks & Tipe Data
-import { useInventory } from '@/context/inventory-context';
-import { useAuth } from '@/context/auth-context';
-import type { InventoryItem} from '@/types';
+// Stores & Types
+import { useInventoryStore } from '@/stores/inventory.store';
+import { useAuthStore } from '@/stores/auth.store';
+import type { InventoryItem } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
-// Komponen UI
+// UI Components
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,27 +28,28 @@ import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { PackageSearch, PackagePlus, Edit3, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { RestockDialog } from '@/components/ui/restock-dialog';
 
-// Skema Zod untuk validasi form
+// Zod Schema
 const inventoryItemSchema = z.object({
   name: z.string().min(1, 'Nama barang harus diisi'),
   sku: z.string().optional(),
   stockQuantity: z.coerce.number().int().min(0, 'Stok tidak boleh negatif'),
-  purchasePrice: z.coerce.number().min(0, 'Harga beli tidak boleh negatif'),
+  purchasePrice: z.coerce.number().min(0, 'Harga beli tidak boleh negatif').optional(),
   sellingPrice: z.coerce.number().min(0, 'Harga jual tidak boleh negatif'),
   lowStockThreshold: z.coerce.number().int().min(0, 'Batas stok tidak boleh negatif').optional(),
 });
 type InventoryFormValues = z.infer<typeof inventoryItemSchema>;
 
-// Helper untuk format mata uang
+// Helper
 const formatCurrency = (amount: number | undefined | null) => {
   if (amount === undefined || amount === null) return '-';
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
 
-// Komponen Halaman Utama
+// Main Page Component
 export default function ManageInventoryPage() {
-  const { inventoryItems, isLoading, pageCount, fetchData, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useInventory();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { inventoryItems, isLoading, pageCount, fetchData, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useInventoryStore();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
+  const { toast } = useToast();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
@@ -53,6 +57,17 @@ export default function ManageInventoryPage() {
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
+
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, filters: { name?: string; dateRange?: DateRange }) => {
+    const { error } = await fetchData(pagination, sorting, filters);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data inventaris. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
 
   const columns: ColumnDef<InventoryItem>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, updateInventoryItem, deleteInventoryItem }),
@@ -83,7 +98,7 @@ export default function ManageInventoryPage() {
           </ItemDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={inventoryItems} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable columns={columns} data={inventoryItems} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
             <div className="flex items-center gap-4">
                 <Input placeholder="Filter berdasarkan nama..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
@@ -94,18 +109,18 @@ export default function ManageInventoryPage() {
   );
 }
 
-// Definisi kolom (tetap sama)
+// Columns Definition
 interface GetColumnsProps {
   onSuccess: () => void;
-  updateInventoryItem: (id: string, data: InventoryFormValues) => Promise<boolean>;
-  deleteInventoryItem: (id: string) => Promise<boolean>;
+  updateInventoryItem: (id: string, data: InventoryFormValues) => Promise<{ success: boolean; error: Error | null }>;
+  deleteInventoryItem: (id: string) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 const getColumns = ({ onSuccess, updateInventoryItem, deleteInventoryItem }: GetColumnsProps): ColumnDef<InventoryItem>[] => [
   { accessorKey: 'name', header: ({ column }) => createSortableHeader(column, 'Nama Barang'), cell: ({ row }) => <div className="font-medium">{row.original.name}</div> },
-  { accessorKey: 'stock_quantity', header: ({ column }) => createSortableHeader(column, 'Stok'), cell: ({ row }) => <div className="text-center">{row.original.stockQuantity}</div> },
-  { accessorKey: 'selling_price', header: ({ column }) => createSortableHeader(column, 'Harga Jual'), cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.sellingPrice)}</div> },
-  { accessorKey: 'last_restocked', header: ({ column }) => createSortableHeader(column, 'Terakhir Restock'), cell: ({ row }) => (row.original.lastRestocked ? format(parseISO(row.original.lastRestocked), 'dd MMM yyyy', { locale: LocaleID }) : '-') },
+  { accessorKey: 'stockQuantity', header: ({ column }) => createSortableHeader(column, 'Stok'), cell: ({ row }) => <div className="text-center">{row.original.stockQuantity}</div> },
+  { accessorKey: 'sellingPrice', header: ({ column }) => createSortableHeader(column, 'Harga Jual'), cell: ({ row }) => <div className="text-right">{formatCurrency(row.original.sellingPrice)}</div> },
+  { accessorKey: 'lastRestocked', header: ({ column }) => createSortableHeader(column, 'Terakhir Restock'), cell: ({ row }) => (row.original.lastRestocked ? format(parseISO(row.original.lastRestocked), 'dd MMM yyyy', { locale: LocaleID }) : '-') },
   {
     id: 'actions',
     cell: ({ row }) => {
@@ -113,7 +128,7 @@ const getColumns = ({ onSuccess, updateInventoryItem, deleteInventoryItem }: Get
       return (
         <div className="text-right space-x-2">
           <RestockDialog item={item} onSuccess={onSuccess} />
-          <ItemDialog item={item} onSuccess={onSuccess} updateInventoryItem={updateInventoryItem} addInventoryItem={async () => false}>
+          <ItemDialog item={item} onSuccess={onSuccess} updateInventoryItem={updateInventoryItem} addInventoryItem={async () => ({ success: false, error: new Error("Not implemented") })}>
             <Button variant="outline" size="sm"><Edit3 className="h-4 w-4" /></Button>
           </ItemDialog>
           <DeleteDialog item={item} onSuccess={onSuccess} deleteInventoryItem={deleteInventoryItem} />
@@ -123,31 +138,38 @@ const getColumns = ({ onSuccess, updateInventoryItem, deleteInventoryItem }: Get
   },
 ];
 
-// --- Sub-komponen untuk Dialog Add/Edit ---
+// Add/Edit Dialog
 interface ItemDialogProps {
   children: React.ReactNode;
   item?: InventoryItem;
   onSuccess: () => void;
-  addInventoryItem: (data: InventoryFormValues) => Promise<boolean>;
-  updateInventoryItem: (id: string, data: InventoryFormValues) => Promise<boolean>;
+  addInventoryItem: (data: InventoryFormValues) => Promise<{ success: boolean; error: Error | null }>;
+  updateInventoryItem: (id: string, data: InventoryFormValues) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInventoryItem }: ItemDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
   const defaultValues = React.useMemo(() => ({ name: '', sku: '', stockQuantity: 0, purchasePrice: 0, sellingPrice: 0, lowStockThreshold: 10 }), []);
 
   const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventoryItemSchema),
-    defaultValues: item || defaultValues,
+    defaultValues: item ? { ...item, purchasePrice: item.purchasePrice ?? 0 } : defaultValues,
   });
 
-  useEffect(() => { form.reset(item || defaultValues); }, [item, open, form, defaultValues]);
+  useEffect(() => { form.reset(item ? { ...item, purchasePrice: item.purchasePrice ?? 0 } : defaultValues); }, [item, open, form, defaultValues]);
 
   const onSubmit = (data: InventoryFormValues) => {
     startTransition(async () => {
-      const success = item ? await updateInventoryItem(item.id, data) : await addInventoryItem(data);
-      if (success) { setOpen(false); onSuccess(); }
+      const result = item ? await updateInventoryItem(item.id, data) : await addInventoryItem(data);
+      if (result.success) {
+        toast({ title: 'Sukses', description: `Barang "${data.name}" berhasil ${item ? 'diperbarui' : 'ditambahkan'}.` });
+        setOpen(false);
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: result.error?.message || 'Gagal menyimpan barang.', variant: 'destructive' });
+      }
     });
   };
 
@@ -165,7 +187,7 @@ function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInvento
               <FormField control={form.control} name="lowStockThreshold" render={({ field }) => (<FormItem><FormLabel>Batas Stok Rendah</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="purchasePrice" render={({ field }) => (<FormItem><FormLabel>Harga Beli</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="purchasePrice" render={({ field }) => (<FormItem><FormLabel>Harga Beli</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="sellingPrice" render={({ field }) => (<FormItem><FormLabel>Harga Jual</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
             <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Simpan'}</Button></DialogFooter>
@@ -176,19 +198,25 @@ function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInvento
   );
 }
 
-// --- Sub-komponen untuk AlertDialog Delete ---
+// Delete Dialog
 interface DeleteDialogProps {
   item: InventoryItem;
   onSuccess: () => void;
-  deleteInventoryItem: (id: string) => Promise<boolean>;
+  deleteInventoryItem: (id: string) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 function DeleteDialog({ item, onSuccess, deleteInventoryItem }: DeleteDialogProps) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
   const handleDelete = () => {
     startTransition(async () => {
-      const success = await deleteInventoryItem(item.id);
-      if (success) onSuccess();
+      const { success, error } = await deleteInventoryItem(item.id);
+      if (success) {
+        toast({ title: 'Sukses', description: `Barang "${item.name}" berhasil dihapus.` });
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: error?.message || 'Gagal menghapus barang.', variant: 'destructive' });
+      }
     });
   };
   return (

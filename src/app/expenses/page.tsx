@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useTransactions } from '@/context/transaction-context';
+import { useTransactionStore } from '@/stores/transaction.store';
 import { useToast } from '@/hooks/use-toast';
 import { BadgeDollarSign, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -23,7 +23,7 @@ const expenseFormSchema = z.object({
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 export default function RecordExpensePage() {
-  const { addTransaction } = useTransactions();
+  const { addTransaction } = useTransactionStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -39,40 +39,28 @@ export default function RecordExpensePage() {
 
   const onSubmit = async (data: ExpenseFormValues) => {
     setIsLoading(true);
-    try {
-      // Panggil addTransaction dengan await karena ini adalah operasi database
-      const success = await addTransaction({
-        type: 'expense',
-        description: data.description,
-        category: data.category || "",
-        amount: data.amount,
-      });
+    const { success, error } = await addTransaction({
+      type: 'expense',
+      description: data.description,
+      category: data.category || "",
+      amount: data.amount,
+    });
 
-      if (success) {
-        toast({
-          title: "Pengeluaran Tercatat",
-          description: "Data pengeluaran berhasil disimpan.",
-        });
-        form.reset();
-        // Arahkan ke halaman utama transaksi setelah berhasil
-        router.push('/transactions'); 
-      } else {
-        toast({
-          title: "Error",
-          description: "Gagal merekam pengeluaran. Silakan coba lagi.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error saat merekam pengeluaran:", error);
+    if (success) {
+      toast({
+        title: "Pengeluaran Tercatat",
+        description: "Data pengeluaran berhasil disimpan.",
+      });
+      form.reset();
+      router.push('/transactions');
+    } else {
       toast({
         title: "Error",
-        description: "Terjadi kesalahan yang tidak terduga.",
+        description: error?.message || "Gagal merekam pengeluaran. Silakan coba lagi.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   return (

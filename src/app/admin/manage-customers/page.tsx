@@ -9,10 +9,11 @@ import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
 
 // Konteks & Tipe Data
-import { useCustomers } from '@/context/customer-context';
-import { useAuth } from '@/context/auth-context';
+import { useCustomerStore } from '@/stores/customer.store';
+import { useAuthStore } from '@/stores/auth.store';
 import type { Customer } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
 // Komponen UI
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Users2, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
+import type { PaginationState, SortingState } from '@tanstack/react-table';
 
 // Skema Zod untuk validasi form
 const customerSchema = z.object({
@@ -37,8 +39,9 @@ type CustomerFormValues = z.infer<typeof customerSchema>;
 
 // Komponen Halaman Utama
 export default function ManageCustomersPage() {
-  const { customers, isLoading, pageCount, fetchData, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
-  const { user: currentUser, isLoading: isLoadingAuth } = useAuth();
+  const { customers, isLoading, pageCount, fetchData, addCustomer, updateCustomer, deleteCustomer } = useCustomerStore();
+  const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
+  const { toast } = useToast();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const triggerRefresh = useCallback(() => setRefreshTrigger((c) => c + 1), []);
@@ -46,6 +49,17 @@ export default function ManageCustomersPage() {
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
+
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, filters: { name?: string; }) => {
+    const { error } = await fetchData(pagination, sorting, filters);
+    if (error) {
+      toast({
+        title: 'Error Memuat Data',
+        description: 'Gagal memuat data pelanggan. Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    }
+  }, [fetchData, toast]);
 
   const columns: ColumnDef<Customer>[] = React.useMemo(
     () => getColumns({ onSuccess: triggerRefresh, addCustomer, updateCustomer, deleteCustomer }),
@@ -76,7 +90,7 @@ export default function ManageCustomersPage() {
           </CustomerDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={customers} pageCount={pageCount} fetchData={fetchData} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable columns={columns} data={customers} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan nama..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
@@ -90,9 +104,9 @@ export default function ManageCustomersPage() {
 // --- Definisi Kolom untuk DataTable ---
 interface GetColumnsProps {
   onSuccess: () => void;
-  addCustomer: (data: CustomerFormValues) => Promise<Customer | null>;
-  updateCustomer: (id: string, data: CustomerFormValues) => Promise<boolean>;
-  deleteCustomer: (id: string) => Promise<boolean>;
+  addCustomer: (data: CustomerFormValues) => Promise<{ customer: Customer | null; error: Error | null }>;
+  updateCustomer: (id: string, data: CustomerFormValues) => Promise<{ success: boolean; error: Error | null }>;
+  deleteCustomer: (id: string) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 const getColumns = ({ onSuccess, addCustomer, updateCustomer, deleteCustomer }: GetColumnsProps): ColumnDef<Customer>[] => [
@@ -120,13 +134,14 @@ interface CustomerDialogProps {
   children: React.ReactNode;
   item?: Customer;
   onSuccess: () => void;
-  addCustomer: (data: CustomerFormValues) => Promise<Customer | null>;
-  updateCustomer: (id: string, data: CustomerFormValues) => Promise<boolean>;
+  addCustomer: (data: CustomerFormValues) => Promise<{ customer: Customer | null; error: Error | null }>;
+  updateCustomer: (id: string, data: CustomerFormValues) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 function CustomerDialog({ children, item, onSuccess, addCustomer, updateCustomer }: CustomerDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   const defaultValues = React.useMemo(() => ({ name: item?.name || '', phone: item?.phone || '', address: item?.address || '', notes: item?.notes || '' }), [item]);
 
@@ -139,8 +154,14 @@ function CustomerDialog({ children, item, onSuccess, addCustomer, updateCustomer
 
   const onSubmit = (data: CustomerFormValues) => {
     startTransition(async () => {
-      const success = item ? await updateCustomer(item.id, data) : await addCustomer(data);
-      if (success) { setOpen(false); onSuccess(); }
+      const result = item ? await updateCustomer(item.id, data) : await addCustomer(data);
+      if (!result.error) {
+        toast({ title: 'Sukses', description: `Data pelanggan "${data.name}" berhasil ${item ? 'diperbarui' : 'ditambahkan'}.` });
+        setOpen(false);
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: result.error.message, variant: 'destructive' });
+      }
     });
   };
 
@@ -167,15 +188,21 @@ function CustomerDialog({ children, item, onSuccess, addCustomer, updateCustomer
 interface DeleteDialogProps {
   item: Customer;
   onSuccess: () => void;
-  deleteCustomer: (id: string) => Promise<boolean>;
+  deleteCustomer: (id: string) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 function DeleteDialog({ item, onSuccess, deleteCustomer }: DeleteDialogProps) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
   const handleDelete = () => {
     startTransition(async () => {
-      const success = await deleteCustomer(item.id);
-      if (success) onSuccess();
+      const { success, error } = await deleteCustomer(item.id);
+      if (success) {
+        toast({ title: 'Sukses', description: `Pelanggan "${item.name}" berhasil dihapus.` });
+        onSuccess();
+      } else {
+        toast({ title: 'Error', description: error?.message || 'Gagal menghapus pelanggan.', variant: 'destructive' });
+      }
     });
   };
   return (
