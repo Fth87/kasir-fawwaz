@@ -9,6 +9,7 @@ import type { PaginationState, SortingState } from '@tanstack/react-table';
 // Stores & Types
 import { useAccountStore } from '@/stores/account.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { shallow } from 'zustand/shallow';
 import type { UserData } from './actions';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +27,11 @@ import { DeleteDialog } from './components/delete-dialog';
 
 // Main Page Component
 export default function ManageAccountsPage() {
-  const { users, isLoading, pageCount, fetchData, addUser, updateUser, deleteUser } = useAccountStore();
+  const { users, isLoading, pageCount } = useAccountStore(
+    (state) => ({ users: state.users, isLoading: state.isLoading, pageCount: state.pageCount }),
+    shallow
+  );
+  const { fetchData, addUser, updateUser, deleteUser } = useAccountStore.getState();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 

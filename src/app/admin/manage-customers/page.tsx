@@ -9,6 +9,7 @@ import type { PaginationState, SortingState } from '@tanstack/react-table';
 // Stores & Types
 import { useCustomerStore } from '@/stores/customer.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { shallow } from 'zustand/shallow';
 import type { Customer } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +27,11 @@ import { DeleteDialog } from './components/delete-dialog';
 
 // Main Page Component
 export default function ManageCustomersPage() {
-  const { customers, isLoading, pageCount, fetchData, addCustomer, updateCustomer, deleteCustomer } = useCustomerStore();
+  const { customers, isLoading, pageCount } = useCustomerStore(
+    (state) => ({ customers: state.customers, isLoading: state.isLoading, pageCount: state.pageCount }),
+    shallow
+  );
+  const { fetchData, addCustomer, updateCustomer, deleteCustomer } = useCustomerStore.getState();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 

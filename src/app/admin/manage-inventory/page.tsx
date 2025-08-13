@@ -10,6 +10,7 @@ import type { DateRange } from 'react-day-picker';
 // Stores & Types
 import { useInventoryStore } from '@/stores/inventory.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { shallow } from 'zustand/shallow';
 import type { InventoryItem } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useToast } from '@/hooks/use-toast';
@@ -34,7 +35,11 @@ const formatCurrency = (amount: number | undefined | null) => {
 
 // Main Page Component
 export default function ManageInventoryPage() {
-  const { inventoryItems, isLoading, pageCount, fetchData, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useInventoryStore();
+  const { inventoryItems, isLoading, pageCount } = useInventoryStore(
+    (state) => ({ inventoryItems: state.inventoryItems, isLoading: state.isLoading, pageCount: state.pageCount }),
+    shallow
+  );
+  const { fetchData, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useInventoryStore.getState();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 

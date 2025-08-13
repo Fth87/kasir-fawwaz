@@ -12,6 +12,7 @@ import type { PaginationState, SortingState } from '@tanstack/react-table';
 // Stores & Types
 import { useTransactionStore } from '@/stores/transaction.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { shallow } from 'zustand/shallow';
 import type { ServiceTransaction, ServiceStatusValue, Transaction, TransactionTypeFilter } from '@/types';
 import { getServiceStatusLabel, ServiceStatusOptions } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -49,7 +50,11 @@ const formatCurrency = (amount: number | undefined | null) => {
 
 // Main Page Component
 export default function ManageServicesPage() {
-  const { transactions, isLoading, pageCount, fetchData, addTransaction, updateTransactionDetails, deleteTransaction } = useTransactionStore();
+  const { transactions, isLoading, pageCount } = useTransactionStore(
+    (state) => ({ transactions: state.transactions, isLoading: state.isLoading, pageCount: state.pageCount }),
+    shallow
+  );
+  const { fetchData, addTransaction, updateTransactionDetails, deleteTransaction } = useTransactionStore.getState();
   const { user: currentUser, isLoading: isLoadingAuth } = useAuthStore();
   const { toast } = useToast();
 
