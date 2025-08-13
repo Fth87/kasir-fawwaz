@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import NProgress from 'nprogress';
+import 'nprogress/nprogress.css'; // Import nprogress's styles
 
 export function ProgressBar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   // This useEffect handles stopping the progress bar when navigation is complete.
   useEffect(() => {
     NProgress.done();
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   // This useEffect handles starting the progress bar by patching browser history methods.
   useEffect(() => {
@@ -47,5 +47,22 @@ export function ProgressBar() {
     };
   }, []);
 
-  return null; // This component does not render anything.
+  // Custom CSS to use the theme's accent color
+  // This is a bit of a hack, but it's the simplest way to theme nprogress
+  // without keeping a separate CSS file.
+  const accentColor = 'var(--accent)';
+  const styles = (
+    <style>{`
+      #nprogress .bar {
+        background: ${accentColor} !important;
+        height: 3px !important;
+        z-index: 99999 !important;
+      }
+      #nprogress .peg {
+        box-shadow: 0 0 10px ${accentColor}, 0 0 5px ${accentColor} !important;
+      }
+    `}</style>
+  );
+
+  return styles;
 }
