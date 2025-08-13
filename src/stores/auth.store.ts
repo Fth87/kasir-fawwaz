@@ -1,14 +1,7 @@
 import { create } from 'zustand';
 import { createClient } from '@/lib/supabase/client';
 import type { AuthUser } from '@supabase/supabase-js';
-
-// NOTE: This type is duplicated from the original context.
-// It should be moved to a central types file (`src/types/index.ts`) as part of the refactor.
-interface AppUser {
-  id: string;
-  email?: string;
-  role: string; // E.g., 'admin' or 'cashier'
-}
+import type { AppUser } from '@/types'; // IMPORTED
 
 const formatAppUser = (authUser: AuthUser): AppUser => ({
   id: authUser.id,

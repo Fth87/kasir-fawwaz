@@ -16,12 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
 
 // Tipe untuk props komponen
 interface InventoryComboboxProps {
   value: string;
   onSelect: (item: { name: string; price: number }) => void;
-  isLoading?: boolean;
 }
 
 // Skema validasi untuk form tambah barang baru di dalam dialog
@@ -34,26 +34,29 @@ const newItemSchema = z.object({
 });
 type NewItemFormValues = z.infer<typeof newItemSchema>;
 
-export function InventoryCombobox({ value, onSelect, isLoading = false }: InventoryComboboxProps) {
-  const { inventoryItems, addInventoryItem } = useInventoryStore();
+export function InventoryCombobox({ value, onSelect }: InventoryComboboxProps) {
+  const { searchResults, isSearching, searchInventory, addInventoryItem } = useInventoryStore();
   const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  React.useEffect(() => {
+    searchInventory(debouncedSearchQuery);
+  }, [debouncedSearchQuery, searchInventory]);
 
   const form = useForm<NewItemFormValues>({
     resolver: zodResolver(newItemSchema),
     defaultValues: { name: '', sellingPrice: 0, purchasePrice: 0, stockQuantity: 0, sku: '' },
   });
 
-  // Isi form dialog dengan nama dari hasil pencarian
   React.useEffect(() => {
     if (dialogOpen) {
       form.setValue('name', searchQuery);
     }
   }, [dialogOpen, searchQuery, form]);
 
-  // Handler untuk menambah barang baru dari dalam dialog
   const handleAddNewItem = async (data: NewItemFormValues) => {
     const { success, error } = await addInventoryItem(data);
     if (success) {
@@ -61,7 +64,6 @@ export function InventoryCombobox({ value, onSelect, isLoading = false }: Invent
         title: 'Barang Ditambahkan',
         description: `Barang "${data.name}" berhasil ditambahkan ke inventaris.`,
       });
-      // Otomatis pilih barang yang baru dibuat menggunakan data dari form
       onSelect({ name: data.name, price: data.sellingPrice });
       setDialogOpen(false);
       setOpen(false);
@@ -89,12 +91,12 @@ export function InventoryCombobox({ value, onSelect, isLoading = false }: Invent
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command filter={(itemValue, search) => (itemValue.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
+          <Command>
             <CommandInput placeholder="Ketik nama barang..." value={searchQuery} onValueChange={setSearchQuery} />
             <CommandList>
-              {isLoading ? (
+              {isSearching ? (
                 <div className="p-2 flex justify-center items-center text-sm text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Memuat...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mencari...
                 </div>
               ) : (
                 <>
@@ -110,7 +112,7 @@ export function InventoryCombobox({ value, onSelect, isLoading = false }: Invent
                     </DialogTrigger>
                   </CommandEmpty>
                   <CommandGroup>
-                    {inventoryItems.map((item) => (
+                    {searchResults.map((item) => (
                       <CommandItem
                         key={item.id}
                         value={item.name}
@@ -140,81 +142,16 @@ export function InventoryCombobox({ value, onSelect, isLoading = false }: Invent
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleAddNewItem)} className="space-y-4 py-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nama Barang</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="stockQuantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stok Awal</FormLabel>
-                  <FormControl>
-                    <Input type="number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nama Barang</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="stockQuantity" render={({ field }) => (<FormItem><FormLabel>Stok Awal</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="purchasePrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Harga Beli (IDR)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="sellingPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Harga Jual (IDR)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="purchasePrice" render={({ field }) => (<FormItem><FormLabel>Harga Beli (IDR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="sellingPrice" render={({ field }) => (<FormItem><FormLabel>Harga Jual (IDR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
-            <FormField
-              control={form.control}
-              name="sku"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU (Opsional)</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="sku" render={({ field }) => (<FormItem><FormLabel>SKU (Opsional)</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button type="submit">
-                {' '}
-                <PlusCircle className="mr-2 h-4 w-4" /> Tambah ke Inventaris{' '}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
+              <Button type="submit"><PlusCircle className="mr-2 h-4 w-4" /> Tambah ke Inventaris</Button>
             </DialogFooter>
           </form>
         </Form>

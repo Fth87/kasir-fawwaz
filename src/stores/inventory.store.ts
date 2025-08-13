@@ -8,7 +8,10 @@ interface InventoryState {
   inventoryItems: InventoryItem[];
   isLoading: boolean;
   pageCount: number;
+  isSearching: boolean;
+  searchResults: InventoryItem[];
   fetchData: (pagination: PaginationState, sorting: SortingState, filters: { name?: string; dateRange?: DateRange }) => Promise<{ error: Error | null }>;
+  searchInventory: (query: string) => Promise<void>;
   addInventoryItem: (itemData: NewInventoryItemInput) => Promise<{ success: boolean; error: Error | null }>;
   updateInventoryItem: (id: string, updates: UpdateInventoryItemInput) => Promise<{ success: boolean; error: Error | null }>;
   deleteInventoryItem: (id: string) => Promise<{ success: boolean; error: Error | null }>;
@@ -20,6 +23,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   inventoryItems: [],
   isLoading: true,
   pageCount: 0,
+  isSearching: false,
+  searchResults: [],
 
   fetchData: async (pagination, sorting, filters) => {
     set({ isLoading: true });
@@ -61,6 +66,38 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     }));
     set({ inventoryItems: formattedItems, pageCount: Math.ceil((count ?? 0) / pageSize), isLoading: false });
     return { error: null };
+  },
+
+  searchInventory: async (query) => {
+    if (!query) {
+        set({ searchResults: [] });
+        return;
+    }
+    set({ isSearching: true });
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('inventory_items')
+      .select('*')
+      .ilike('name', `%${query}%`)
+      .limit(10);
+
+    if (error) {
+      console.error('Error searching inventory:', error);
+      set({ searchResults: [], isSearching: false });
+      return;
+    }
+
+    const formattedItems = data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku || undefined,
+        stockQuantity: item.stock_quantity,
+        purchasePrice: item.purchase_price || 0,
+        sellingPrice: item.selling_price,
+        lowStockThreshold: item.low_stock_threshold || undefined,
+        lastRestocked: item.last_restocked || undefined,
+    }));
+    set({ searchResults: formattedItems, isSearching: false });
   },
 
   addInventoryItem: async (itemData) => {

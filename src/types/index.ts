@@ -88,6 +88,14 @@ export type User = {
 // For Add User Form
 export type NewUserInput = Omit<User, 'id'>;
 
+// This is the user type as represented in the application state,
+// derived from the Supabase Auth user.
+export interface AppUser {
+  id: string;
+  email?: string;
+  role: string;
+}
+
 // For Reports
 export type MonthlySummary = {
   month: string; // YYYY-MM or label like "Aug 24"

@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { id as LocaleID } from 'date-fns/locale';
@@ -13,7 +10,6 @@ import type { PaginationState, SortingState } from '@tanstack/react-table';
 import { useAccountStore } from '@/stores/account.store';
 import { useAuthStore } from '@/stores/auth.store';
 import type { UserData } from './actions';
-import { UserRoles } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,21 +17,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Users, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 
-// Zod Schema
-const accountSchema = z.object({
-  email: z.string().email('Format email tidak valid.'),
-  role: z.enum(UserRoles),
-  password: z.string().min(6, 'Password minimal 6 karakter.').optional().or(z.literal('')),
-});
-type AccountFormValues = z.infer<typeof accountSchema>;
-
+// Local Components
+import { AccountDialog } from './components/account-dialog';
+import { DeleteDialog } from './components/delete-dialog';
 
 // Main Page Component
 export default function ManageAccountsPage() {
@@ -49,18 +36,6 @@ export default function ManageAccountsPage() {
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
   const filters = useMemo(() => ({ name: debouncedNameFilter }), [debouncedNameFilter]);
-
-  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState) => {
-    // Note: `filters` are not used by the API for this page, but keeping signature consistent
-    const { error } = await fetchData(pagination, sorting);
-    if (error) {
-      toast({
-        title: 'Error Memuat Data',
-        description: 'Gagal memuat data pengguna. Silakan coba lagi.',
-        variant: 'destructive',
-      });
-    }
-  }, [fetchData, toast]);
 
   const columns: ColumnDef<UserData>[] = React.useMemo(
     () => getColumns({
@@ -96,7 +71,22 @@ export default function ManageAccountsPage() {
           </AccountDialog>
         </CardHeader>
         <CardContent className='max-w-full overflow-x-scroll'>
-          <DataTable columns={columns} data={users} pageCount={pageCount} fetchData={fetchDataWithToast} isLoading={isLoading} refreshTrigger={refreshTrigger} filters={filters}>
+          <DataTable
+            columns={columns}
+            data={users}
+            pageCount={pageCount}
+            fetchData={fetchData}
+            onFetchError={(error) => {
+              toast({
+                title: 'Error Memuat Data',
+                description: error.message || 'Gagal memuat data pengguna.',
+                variant: 'destructive',
+              });
+            }}
+            isLoading={isLoading}
+            refreshTrigger={refreshTrigger}
+            filters={filters}
+          >
             <div className="flex items-center gap-4">
               <Input placeholder="Filter berdasarkan email..." value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} className="w-full md:max-w-sm" />
             </div>
@@ -135,98 +125,3 @@ const getColumns = ({ onSuccess, updateUser, deleteUser, currentUserId }: GetCol
     },
   },
 ];
-
-// Add/Edit Dialog
-interface AccountDialogProps {
-  children: React.ReactNode;
-  item?: UserData;
-  onSuccess: () => void;
-  addUser: (data: FormData) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
-  updateUser: (id: string, data: FormData) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
-  disabled?: boolean;
-}
-
-function AccountDialog({ children, item, onSuccess, addUser, updateUser, disabled }: AccountDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
-
-  const form = useForm<AccountFormValues>({
-    resolver: zodResolver(accountSchema),
-    defaultValues: { email: item?.email || '', role: item?.role as 'admin' | 'cashier' || 'cashier', password: '' },
-  });
-
-  useEffect(() => {
-    form.reset({ email: item?.email || '', role: item?.role as 'admin' | 'cashier' || 'cashier', password: '' });
-  }, [item, open, form]);
-
-  const onSubmit = (data: AccountFormValues) => {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.append('email', data.email);
-      formData.append('role', data.role);
-      if (data.password) formData.append('password', data.password);
-
-      const result = item ? await updateUser(item.id, formData) : await addUser(formData);
-
-      if (result.success) {
-        toast({ title: 'Sukses', description: result.successMessage });
-        setOpen(false);
-        onSuccess();
-      } else {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      }
-    });
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild disabled={disabled}>{children}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>{item ? 'Ubah Akun Pengguna' : 'Tambah Akun Baru'}</DialogTitle></DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" readOnly={!!item} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="role" render={({ field }) => (<FormItem><FormLabel>Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih role..." /></SelectTrigger></FormControl><SelectContent>{UserRoles.map(role => (<SelectItem key={role} value={role} className="capitalize">{role}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Password {item ? '(Opsional)' : ''}</FormLabel><FormControl><Input {...field} type="password" placeholder={item ? "Isi untuk mengubah password" : "••••••••"} /></FormControl><FormMessage /></FormItem>)} />
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Simpan'}</Button></DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Delete Dialog
-interface DeleteDialogProps {
-  item: UserData;
-  onSuccess: () => void;
-  deleteUser: (id: string) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
-  disabled?: boolean;
-}
-
-function DeleteDialog({ item, onSuccess, deleteUser, disabled }: DeleteDialogProps) {
-  const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
-
-  const handleDelete = () => {
-    startTransition(async () => {
-      const result = await deleteUser(item.id);
-      if (result.success) {
-        toast({ title: 'Sukses', description: result.successMessage });
-        onSuccess();
-      } else {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      }
-    });
-  };
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={disabled}><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader><AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle><AlertDialogDescription>Ini akan menghapus akun <strong>{item.email}</strong> secara permanen.</AlertDialogDescription></AlertDialogHeader>
-        <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={handleDelete} disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Hapus'}</AlertDialogAction></AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
