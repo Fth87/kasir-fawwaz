@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollText } from 'lucide-react';
 import { getPaginatedTransactions } from './actions';
-import { TransactionProvider } from '@/context/transaction-context';
+// import { TransactionProvider } from '@/context/transaction-context';
 import { TransactionsTable } from './transactions-table';
 import type { Transaction } from '@/types';
 
@@ -40,12 +40,12 @@ export default async function TransactionsPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <TransactionProvider>
+        {/* <TransactionProvider> */}
           <TransactionsTable
             initialData={data ?? []}
             initialPageCount={pageCount}
           />
-        </TransactionProvider>
+        {/* </TransactionProvider> */}
       </CardContent>
     </Card>
   );

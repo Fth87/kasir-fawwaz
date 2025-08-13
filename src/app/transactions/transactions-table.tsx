@@ -2,13 +2,14 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useTransactions } from '@/context/transaction-context';
+// import { useTransactions } from '@/context/transaction-context';
 import type { Transaction } from '@/types';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Settings } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useTransactionStore } from '@/stores/transaction.store';
 
 // Helper functions (can be moved to a utils file if needed)
 const formatCurrency = (amount: number) => {
@@ -98,7 +99,7 @@ interface TransactionsTableProps {
 }
 
 export function TransactionsTable({ initialData, initialPageCount }: TransactionsTableProps) {
-  const { transactions, isLoading, pageCount, fetchData } = useTransactions();
+  const { transactions, isLoading, pageCount, fetchData } = useTransactionStore();
 
   // Use context data if available, otherwise fall back to initial props
   const data = transactions.length > 0 ? transactions : initialData;
