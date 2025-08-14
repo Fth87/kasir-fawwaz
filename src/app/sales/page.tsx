@@ -283,7 +283,7 @@ export default function RecordSalePage() {
                 <FormItem>
                   <FormLabel>{discountType === 'percent' ? 'Nilai Diskon (%)' : 'Nilai Diskon (Rp)'}</FormLabel>
                   <FormControl>
-                    <Input type="number" {...field} />
+                    <Input type="number" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -306,7 +306,7 @@ export default function RecordSalePage() {
                   <FormItem>
                     <FormLabel>Nominal Cash</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
