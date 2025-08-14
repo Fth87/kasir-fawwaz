@@ -82,7 +82,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
           ? (transactionData.cashTendered - grandTotal)
           : undefined;
         recordToInsert = {
-            ...recordToInsert,
+            type: 'sale',
             customer_name: transactionData.customerName,
             customer_id: transactionData.customerId,
             payment_method: transactionData.paymentMethod,
