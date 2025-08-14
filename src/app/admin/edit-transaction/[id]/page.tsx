@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray, type FieldError } from 'react-hook-form';
+import { useForm, useFieldArray, type FieldError, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useTransactionStore, type UpdateTransactionInput } from '@/stores/transaction.store';
@@ -114,7 +114,13 @@ export default function EditTransactionPage() {
     } else if (data.type === 'service') {
       updatePayload = { customerName: data.customerName, total_amount: data.serviceFee, details: { serviceName: data.serviceName, device: 'N/A', issueDescription: 'N/A' } };
     } else if (data.type === 'expense') {
-      updatePayload = { total_amount: data.amount, details: { description: data.description, category: data.category } };
+      updatePayload = {
+        total_amount: data.amount,
+        details: {
+          description: data.description,
+          ...(data.category ? { category: data.category } : {}),
+        },
+      };
     }
 
     const { success, error } = await updateTransactionDetails(transaction.id, updatePayload);
@@ -160,7 +166,9 @@ export default function EditTransactionPage() {
     return items.reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
   };
 
-  const itemsError = form.formState.errors.items as FieldError | undefined;
+  const itemsError = (
+    form.formState.errors as FieldErrors<{ items?: unknown }>
+  ).items as FieldError | undefined;
 
   return (
     <Card className="w-full max-w-2xl mx-auto">

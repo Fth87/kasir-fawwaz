@@ -1,8 +1,16 @@
 import { create } from 'zustand';
 import { createClient } from '@/lib/supabase/client';
-import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction, TransactionTypeFilter, SaleItem } from '@/types';
+import type {
+  Transaction,
+  SaleTransaction,
+  ServiceTransaction,
+  ExpenseTransaction,
+  TransactionTypeFilter,
+  SaleItem,
+} from '@/types';
 import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 import type { PaginationState, SortingState } from '@tanstack/react-table';
+import type { TablesInsert, Json } from '@/types/supabase';
 
 // Redefine input types for clarity within the store
 type AddSaleInput = Omit<SaleTransaction, 'id' | 'date' | 'grandTotal' | 'items'> & { items: Omit<SaleItem, 'id' | 'total'>[] };
@@ -11,7 +19,7 @@ type AddExpenseInput = Omit<ExpenseTransaction, 'id' | 'date'>;
 export type AddTransactionInput = AddSaleInput | AddServiceInput | AddExpenseInput;
 
 export type UpdateTransactionInput = {
-  details?: Record<string, unknown>;
+  details?: Record<string, Json>;
   customerName?: string;
   customerId?: string;
   total_amount?: number;
@@ -64,44 +72,53 @@ export const useTransactionStore = create<TransactionState>((set) => ({
 
   addTransaction: async (transactionData) => {
     const supabase = createClient();
-    let recordToInsert: Record<string, unknown> = { type: transactionData.type };
+    let recordToInsert: TablesInsert<'transactions'>;
 
     if (transactionData.type === 'sale') {
-        const grandTotal = transactionData.items.reduce((sum, item) => sum + (item.pricePerItem * item.quantity), 0);
-        recordToInsert = {
-            ...recordToInsert,
-            customer_name: transactionData.customerName,
-            customer_id: transactionData.customerId,
-            payment_method: transactionData.paymentMethod,
-            total_amount: grandTotal,
-            details: { items: transactionData.items }
-        };
+      const grandTotal = transactionData.items.reduce(
+        (sum, item) => sum + item.pricePerItem * item.quantity,
+        0,
+      );
+      recordToInsert = {
+        type: 'sale',
+        customer_name: transactionData.customerName,
+        customer_id: transactionData.customerId,
+        total_amount: grandTotal,
+        details: {
+          items: transactionData.items,
+          payment_method: transactionData.paymentMethod,
+        } as Json,
+      };
     } else if (transactionData.type === 'service') {
-        recordToInsert = {
-            ...recordToInsert,
-            customer_name: transactionData.customerName,
-            customer_id: transactionData.customerId,
-            total_amount: transactionData.serviceFee,
-            details: {
-                serviceName: transactionData.serviceName,
-                device: transactionData.device,
-                issueDescription: transactionData.issueDescription,
-                status: transactionData.status || 'PENDING_CONFIRMATION',
-                progressNotes: [],
-            },
-        };
-    } else if (transactionData.type === 'expense') {
-        recordToInsert = {
-            ...recordToInsert,
-            total_amount: transactionData.amount,
-            details: {
-                description: transactionData.description,
-                category: transactionData.category,
-            }
-        };
+      recordToInsert = {
+        type: 'service',
+        customer_name: transactionData.customerName,
+        customer_id: transactionData.customerId,
+        total_amount: transactionData.serviceFee,
+        details: {
+          serviceName: transactionData.serviceName,
+          device: transactionData.device,
+          issueDescription: transactionData.issueDescription,
+          status: transactionData.status || 'PENDING_CONFIRMATION',
+          progressNotes: [],
+        } as Json,
+      };
+    } else {
+      recordToInsert = {
+        type: 'expense',
+        total_amount: transactionData.amount,
+        details: {
+          description: transactionData.description,
+          category: transactionData.category,
+        } as Json,
+      };
     }
-    const { error,data } = await supabase.from('transactions').insert(recordToInsert) .select()
-    .single();
+
+    const { error, data } = await supabase
+      .from('transactions')
+      .insert(recordToInsert)
+      .select()
+      .single();
     const mappedData = data ? mapDbRowToTransaction(data) : null;
     if (error) console.error('Error adding transaction:', error);
     return { success: !error, error: error as Error | null, data: mappedData };
@@ -126,14 +143,20 @@ export const useTransactionStore = create<TransactionState>((set) => ({
         return { success: false, error: new Error('Gagal mengambil data transaksi saat ini.') };
     }
 
-    const currentDetails = (typeof currentTx.details === 'object' && currentTx.details !== null ? currentTx.details : {}) as Record<string, unknown>;
+    const currentDetails =
+      (typeof currentTx.details === 'object' && currentTx.details !== null
+        ? (currentTx.details as Record<string, Json>)
+        : {});
 
-    const newDetails = { ...currentDetails, ...updates.details };
+    const newDetails: Record<string, Json> = {
+      ...currentDetails,
+      ...(updates.details ?? {}),
+    };
 
     const { error } = await supabase
         .from('transactions')
         .update({
-            details: newDetails,
+            details: newDetails as Json,
             customer_name: updates.customerName ?? currentTx.customer_name,
             total_amount: updates.total_amount ?? currentTx.total_amount,
          })
