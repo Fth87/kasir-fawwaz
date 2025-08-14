@@ -14,11 +14,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { CustomerCombobox } from '@/components/ui/customer-combobox';
 
 // Stores & Hooks
-import { useTransactionStore } from '@/stores/transaction.store';
 import { useCustomerStore } from '@/stores/customer.store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Wrench, Loader2 } from 'lucide-react';
+import { useTransactionStore } from '@/stores/transaction.store';
 
 // Zod Schema
 const serviceFormSchema = z.object({
@@ -35,11 +35,11 @@ const serviceFormSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 export default function RecordServicePage() {
-  const { addTransaction } = useTransactionStore();
   const { isLoading: isLoadingCustomers, fetchData: fetchCustomers } = useCustomerStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { addTransaction } = useTransactionStore();
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
@@ -55,27 +55,15 @@ export default function RecordServicePage() {
   useEffect(() => {
     void fetchCustomers({ pageIndex: 0, pageSize: 100 }, [], {});
   }, [fetchCustomers]);
-
-  const onSubmit = async (data: ServiceFormValues) => {
-    setIsSubmitting(true);
-    const { success, error } = await addTransaction({
-      type: 'service',
-      serviceName: data.serviceName,
-      customerName: data.customer.name,
-      customerId: data.customer.id,
-      device: data.device,
-      issueDescription: data.issueDescription,
-      serviceFee: data.serviceFee,
-    });
-
-    if (success) {
-      toast({ title: 'Servis Tercatat', description: 'Transaksi servis berhasil direkam.' });
-      form.reset();
-      router.push('/transactions');
-    } else {
-      toast({ title: 'Error', description: error?.message || 'Gagal merekam servis.', variant: 'destructive' });
-    }
-    setIsSubmitting(false);
+    const onSubmit = async (data: ServiceFormValues) => {
+      const result =  await addTransaction({ ...data, type: 'service' });
+      if (result.success && result.data) {
+        toast({ title: 'Servis Tercatat', description: 'Transaksi servis berhasil direkam.' });
+        router.push(`/transactions/${result.data.id}`);
+        form.reset();
+      } else {
+        toast({ title: 'Error', description: result.error?.message || 'Gagal menyimpan data servis.', variant: 'destructive' });
+      }
   };
 
   return (

@@ -15,7 +15,7 @@ interface TransactionState {
   isLoading: boolean;
   pageCount: number;
   fetchData: (pagination: PaginationState, sorting: SortingState, filters: { customerName?: string, type?: TransactionTypeFilter }) => Promise<{ error: Error | null }>;
-  addTransaction: (transactionData: AddTransactionInput) => Promise<{ success: boolean; error: Error | null }>;
+  addTransaction: (transactionData: AddTransactionInput) => Promise<{ success: boolean; error: Error | null, data?: Transaction | null }>;
   deleteTransaction: (transactionId: string) => Promise<{ success: boolean; error: Error | null }>;
   updateTransactionDetails: (transactionId: string, updates: any) => Promise<{ success: boolean; error: Error | null }>;
 }
@@ -93,10 +93,11 @@ export const useTransactionStore = create<TransactionState>((set) => ({
             }
         };
     }
-
-    const { error } = await supabase.from('transactions').insert(recordToInsert);
+    const { error,data } = await supabase.from('transactions').insert(recordToInsert) .select()
+    .single();
+    const mappedData = data ? mapDbRowToTransaction(data) : null;
     if (error) console.error('Error adding transaction:', error);
-    return { success: !error, error: error as Error | null };
+    return { success: !error, error: error as Error | null, data: mappedData };
   },
 
   deleteTransaction: async (transactionId) => {
