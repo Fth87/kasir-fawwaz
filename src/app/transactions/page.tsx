@@ -3,7 +3,6 @@ import { ScrollText } from 'lucide-react';
 import { getPaginatedTransactions } from './actions';
 // import { TransactionProvider } from '@/context/transaction-context';
 import { TransactionsTable } from './transactions-table';
-import type { Transaction } from '@/types';
 
 export default async function TransactionsPage() {
   // Fetch the initial data on the server.
