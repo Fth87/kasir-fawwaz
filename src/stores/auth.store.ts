@@ -19,9 +19,9 @@ const formatAppUser = (authUser: AuthUser): AppUser => ({
 interface AuthState {
   user: AppUser | null;
   isLoading: boolean;
-  login: (email: string, password_input: string) => Promise<{ error: any | null }>;
-  logout: () => Promise<{ error: any | null }>;
-  signUp: (email: string, password_input: string, role: string) => Promise<{ error: any | null }>;
+  login: (email: string, password_input: string) => Promise<{ error: Error | null }>;
+  logout: () => Promise<{ error: Error | null }>;
+  signUp: (email: string, password_input: string, role: string) => Promise<{ error: Error | null }>;
   // Internal function to set up the auth listener
   _initialize: () => () => void;
 }

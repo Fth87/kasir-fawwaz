@@ -191,7 +191,7 @@ export default function RecordSalePage() {
                 <FormItem className="space-y-3">
                   <FormLabel>Metode Pembayaran</FormLabel>
                   <FormControl>
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
                       <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl>
                           <RadioGroupItem value="cash" />
