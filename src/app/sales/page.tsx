@@ -31,6 +31,11 @@ const saleFormSchema = z.object({
   }),
   items: z.array(saleItemSchema).min(1, 'Minimal ada satu barang'),
   paymentMethod: z.enum(['cash', 'transfer', 'qris']),
+  discountType: z.enum(['percent', 'nominal']),
+  discountValue: z.coerce.number().min(0).default(0),
+  discountAmount: z.number().nonnegative().optional(),
+  cashTendered: z.coerce.number().optional(),
+  change: z.number().optional(),
 });
 
 type SaleFormValues = z.infer<typeof saleFormSchema>;
@@ -54,6 +59,8 @@ export default function RecordSalePage() {
       customer: { id: undefined, name: '' },
       items: [{ name: '', quantity: 1, pricePerItem: 0 }],
       paymentMethod: 'cash',
+      discountType: 'percent',
+      discountValue: 0,
     },
   });
 
@@ -64,11 +71,25 @@ export default function RecordSalePage() {
 
   const onSubmit = async (data: SaleFormValues) => {
     setIsLoading(true);
+    const subtotal = data.items.reduce((acc, item) => acc + item.quantity * item.pricePerItem, 0);
+    const discountAmount = data.discountType === 'percent'
+      ? (subtotal * (data.discountValue || 0)) / 100
+      : (data.discountValue || 0);
+    const totalAfterDiscount = subtotal - discountAmount;
+    const change = data.paymentMethod === 'cash' && data.cashTendered !== undefined
+      ? data.cashTendered - totalAfterDiscount
+      : undefined;
+
     const { success, error } = await addTransaction({
       type: 'sale',
       customerName: data.customer.name,
       customerId: data.customer.id,
       paymentMethod: data.paymentMethod,
+      discountType: data.discountType,
+      discountValue: data.discountValue,
+      discountAmount,
+      cashTendered: data.cashTendered,
+      change,
       items: data.items.map(item => ({
         ...item,
         // The `total` property is not part of the form, so we calculate it here
@@ -89,7 +110,18 @@ export default function RecordSalePage() {
     setIsLoading(false);
   };
 
-  const grandTotal = form.watch('items').reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
+  const subtotal = form.watch('items').reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
+  const discountType = form.watch('discountType');
+  const discountValue = form.watch('discountValue');
+  const discountAmount = discountType === 'percent'
+    ? (subtotal * (discountValue || 0)) / 100
+    : (discountValue || 0);
+  const totalAfterDiscount = subtotal - discountAmount;
+  const cashTendered = form.watch('cashTendered');
+  const change = cashTendered !== undefined ? cashTendered - totalAfterDiscount : undefined;
+  const isCash = form.watch('paymentMethod') === 'cash';
+  const discountPercent = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+  const canSubmit = !isCash || (cashTendered !== undefined && cashTendered >= totalAfterDiscount);
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -217,10 +249,83 @@ export default function RecordSalePage() {
               )}
             />
 
-            <div className="text-right text-2xl font-bold pt-4 border-t">Grand Total: IDR {grandTotal.toLocaleString('id-ID')}</div>
+            <FormField
+              control={form.control}
+              name="discountType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Diskon</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="percent" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Persen</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="nominal" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Nominal</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="discountValue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{discountType === 'percent' ? 'Nilai Diskon (%)' : 'Nilai Diskon (Rp)'}</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {discountAmount > 0 && (
+              <div className="text-right text-sm text-muted-foreground">
+                {discountType === 'percent'
+                  ? `Potongan: IDR ${discountAmount.toLocaleString('id-ID')}`
+                  : `Potongan: IDR ${discountAmount.toLocaleString('id-ID')} (${discountPercent.toFixed(2)}%)`}
+              </div>
+            )}
+
+            {isCash && (
+              <FormField
+                control={form.control}
+                name="cashTendered"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nominal Cash</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            {isCash && (
+              <div className="text-right text-sm text-muted-foreground">
+                Kembalian: IDR {change !== undefined ? Math.max(change, 0).toLocaleString('id-ID') : '0'}
+              </div>
+            )}
+            <div className="text-right pt-4 border-t space-y-1">
+              <div>Subtotal: IDR {subtotal.toLocaleString('id-ID')}</div>
+              <div>Diskon: IDR {discountAmount.toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold">Grand Total: IDR {totalAfterDiscount.toLocaleString('id-ID')}</div>
+            </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full text-lg py-6" disabled={isLoading}>
+            <Button type="submit" className="w-full text-lg py-6" disabled={isLoading || !canSubmit}>
               {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Simpan Transaksi'}
             </Button>
           </CardFooter>
