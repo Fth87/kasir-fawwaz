@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ReceiptData, ServiceReceiptData, SalesReceiptData } from '../types/receipt';
+import { ReceiptData } from '../types/receipt';
 import { ESCPOSPrinter } from '../utils/printer';
 
 export function usePrinter() {

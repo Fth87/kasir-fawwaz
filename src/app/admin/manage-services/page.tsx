@@ -10,9 +10,9 @@ import { id as LocaleID } from 'date-fns/locale';
 import type { PaginationState, SortingState } from '@tanstack/react-table';
 
 // Stores & Types
-import { useTransactionStore } from '@/stores/transaction.store';
+import { useTransactionStore, type UpdateTransactionInput } from '@/stores/transaction.store';
 import { useAuthStore } from '@/stores/auth.store';
-import type { ServiceTransaction, ServiceStatusValue, Transaction, TransactionTypeFilter } from '@/types';
+import type { ServiceTransaction, ServiceStatusValue, TransactionTypeFilter } from '@/types';
 import { getServiceStatusLabel, ServiceStatusOptions } from '@/types';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useToast } from '@/hooks/use-toast';
@@ -116,7 +116,7 @@ export default function ManageServicesPage() {
 // Columns Definition
 interface GetColumnsProps {
   onSuccess: () => void;
-  updateService: (id: string, data: Partial<Transaction>) => Promise<{ success: boolean; error: Error | null; }>;
+  updateService: (id: string, data: UpdateTransactionInput) => Promise<{ success: boolean; error: Error | null; }>;
   deleteService: (id: string) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
@@ -147,8 +147,8 @@ interface ServiceDialogProps {
   children: React.ReactNode;
   item?: ServiceTransaction;
   onSuccess: () => void;
-  addService: (data: any) => Promise<{ success: boolean; error: Error | null; }>;
-  updateService: (id: string, data: any) => Promise<{ success: boolean; error: Error | null; }>;
+  addService: (data: ServiceFormValues & { type: 'service' }) => Promise<{ success: boolean; error: Error | null; }>;
+  updateService: (id: string, data: UpdateTransactionInput) => Promise<{ success: boolean; error: Error | null; }>;
 }
 
 function ServiceDialog({ children, item, onSuccess, addService, updateService }: ServiceDialogProps) {
