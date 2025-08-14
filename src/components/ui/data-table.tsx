@@ -12,10 +12,10 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   pageCount: number;
-  fetchData: (pagination: PaginationState, sorting: SortingState, filters: Record<string, any>) => void;
+  fetchData: (pagination: PaginationState, sorting: SortingState, filters: Record<string, unknown>) => void;
   isLoading: boolean;
   refreshTrigger: number;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   children?: React.ReactNode; // To allow passing filter components
 }
 

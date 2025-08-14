@@ -43,7 +43,8 @@ export default function HomePage() {
       // Load demo data based on current type
       loadDemoData(receiptType);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
   const loadDemoData = (type: 'service' | 'sales') => {
     const data = type === 'service' ? generateServiceDemoData() : generateSalesDemoData();

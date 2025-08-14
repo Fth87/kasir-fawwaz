@@ -21,7 +21,7 @@ export const useAccountStore = create<AccountState>((set) => ({
   isLoading: true,
   pageCount: 0,
 
-  fetchData: async (pagination, sorting) => {
+  fetchData: async (pagination) => {
     set({ isLoading: true });
     // Sorting is ignored by the API in the original context, so we do the same.
     const { pageIndex, pageSize } = pagination;
