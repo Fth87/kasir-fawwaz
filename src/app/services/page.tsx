@@ -38,7 +38,7 @@ export default function RecordServicePage() {
   const { isLoading: isLoadingCustomers, fetchData: fetchCustomers } = useCustomerStore();
   const { toast } = useToast();
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting ] = useState(false);
   const { addTransaction } = useTransactionStore();
 
   const form = useForm<ServiceFormValues>({
