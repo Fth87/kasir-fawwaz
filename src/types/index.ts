@@ -16,6 +16,11 @@ export type SaleTransaction = {
   customerName?: string; // This will be used to link to Customer if customerId is not present
   customerId?: string; // Optional: to link to a specific customer in CRM
   grandTotal: number;
+  discountType?: 'percent' | 'nominal';
+  discountValue?: number;
+  discountAmount?: number;
+  cashTendered?: number;
+  change?: number;
 };
 
 export const ServiceStatusOptions = [

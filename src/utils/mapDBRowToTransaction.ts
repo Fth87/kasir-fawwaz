@@ -17,8 +17,13 @@ export function mapDbRowToTransaction(tx: any): Transaction | null {
         ...commonData,
         type: 'sale',
         grandTotal: commonData.total_amount,
-        paymentMethod: details.paymentMethod,
+        paymentMethod: tx.payment_method || details.paymentMethod,
         items: details.items ?? [],
+        discountType: tx.discount_type || details.discountType,
+        discountValue: tx.discount_value || details.discountValue,
+        discountAmount: tx.discount_amount || details.discountAmount,
+        cashTendered: tx.cash_tendered || details.cashTendered,
+        change: tx.change || details.change,
       } as SaleTransaction;
 
     case 'service':
