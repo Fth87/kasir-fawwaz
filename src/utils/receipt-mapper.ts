@@ -8,6 +8,7 @@ export function mapSaleToReceiptData(
   tx: SaleTransaction,
   settings: StoreSettings | null
 ): SalesReceiptData {
+  const subtotal = tx.grandTotal + (tx.discountAmount || 0);
   return {
     store: {
       name: settings?.storeName || 'Toko Anda',
@@ -27,8 +28,16 @@ export function mapSaleToReceiptData(
       price: item.pricePerItem || item.total / item.quantity,
     })),
     totals: {
-      subtotal: tx.grandTotal, // Sesuaikan jika ada subtotal terpisah
+      subtotal,
+      discount: tx.discountAmount,
+      discountValue: tx.discountValue,
+      discountType: tx.discountType,
       total: tx.grandTotal,
+    },
+    payment: {
+      method: tx.paymentMethod,
+      cash: tx.cashTendered,
+      change: tx.change,
     },
     footer: 'Terima kasih atas kepercayaan Anda!',
   };

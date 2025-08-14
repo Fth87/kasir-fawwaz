@@ -6,13 +6,13 @@ import Link from 'next/link';
 import { QRCodeCanvas } from 'qrcode.react';
 
 // Hooks & Server Actions
-import { getTransactionById } from '../actions'; // Pastikan path ini benar
-import { useSettingsStore } from '@/stores/settings.store'; // Pastikan path ini benar
-import { usePrinter } from '@/hooks/usePrinter'; // Hook baru untuk cetak RawBT
+import { getTransactionById } from '../actions'; 
+import { useSettingsStore } from '@/stores/settings.store'; 
+import { usePrinter } from '@/hooks/usePrinter'; 
 
 // Mappers & Types
-import { mapSaleToReceiptData, mapServiceToReceiptData } from '@/utils/receipt-mapper'; // Mapper data baru
-import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types'; // Pastikan path ini benar
+import { mapSaleToReceiptData, mapServiceToReceiptData } from '@/utils/receipt-mapper'; 
+import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types'; 
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,18 +28,18 @@ const formatCurrency = (amount: number): string => {
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
-  const { settings } = useSettingsStore();
+  const { settings, fetchSettings } = useSettingsStore();
   const [transaction, setTransaction] = useState<Transaction | null | undefined>(undefined);
   const [isFetching, setIsFetching] = useState(true);
 
   // Gunakan hook usePrinter untuk mendapatkan fungsi cetak dan status loading-nya
   const { printReceipt, isLoading: isPrinting } = usePrinter();
-
   const transactionId = params.id as string;
-
+  
   useEffect(() => {
     if (transactionId) {
       setIsFetching(true);
+      fetchSettings('');
       getTransactionById(transactionId)
         .then(({ data }) => {
           setTransaction(data);
@@ -113,21 +113,7 @@ export default function ReceiptPage() {
 
 function ReceiptHeader({ settings }: { settings: StoreSettings | null }) {
   return (
-    // <CardHeader className="bg-primary text-primary-foreground p-6">
-    //     <div className="flex items-center justify-between mb-2">
-    //         <div className="flex items-center gap-3">
-    //           <Building className="h-8 w-8" />
-    //           <CardTitle className="text-2xl font-headline">{settings?.storeName || 'Toko Anda'}</CardTitle>
-    //         </div>
-    //         <div className="text-right">
-    //           <p className="text-xs">Struk</p>
-    //           <p className="font-mono text-xs">ID: {transaction.id.substring(0, 8)}</p>
-    //         </div>
-    //     </div>
-    //     <p className="text-xs text-primary-foreground/80">{settings?.storeAddress || 'Alamat Toko Anda'}</p>
-    // </CardHeader>
     <CardHeader className="bg-primary text-primary-foreground p-6 text-center">
-      {/* Ikon dan Nama Toko dibuat rata tengah */}
       <div className="flex justify-center items-center gap-3 mb-2">
         <Building className="h-8 w-8" />
         <CardTitle className="text-2xl font-headline">{settings?.storeName || 'Toko Anda'}</CardTitle>
@@ -136,7 +122,6 @@ function ReceiptHeader({ settings }: { settings: StoreSettings | null }) {
       {/* Alamat Toko */}
       <p className="text-sm text-primary-foreground/80">{settings?.storeAddress || 'Alamat Toko Anda'}</p>
 
-      {/* Menambahkan nomor telepon jika tersedia di settings */}
       {settings?.storePhone && <p className="text-xs text-primary-foreground/70 mt-1">{settings.storePhone}</p>}
     </CardHeader>
   );
@@ -168,6 +153,9 @@ function TransactionDetails({ transaction }: { transaction: Transaction }) {
 }
 
 function SaleDetails({ tx }: { tx: SaleTransaction }) {
+  const subtotal = tx.grandTotal + (tx.discountAmount ?? 0);
+  const discountLabel = tx.discountType === 'percent' ? `${tx.discountValue ?? 0}%` : formatCurrency(tx.discountValue ?? 0);
+
   return (
     <>
       {tx.customerName && (
@@ -190,9 +178,37 @@ function SaleDetails({ tx }: { tx: SaleTransaction }) {
         </ul>
       </div>
       <Separator />
-      <div className="flex justify-between items-center">
-        <p className="text-lg font-bold">Grand Total</p>
-        <p className="text-lg font-bold text-primary font-mono">{formatCurrency(tx.grandTotal)}</p>
+      <div className="space-y-1">
+        <div className="flex justify-between">
+          <p>Subtotal</p>
+          <p className="font-mono">{formatCurrency(subtotal)}</p>
+        </div>
+        {tx.discountAmount ? (
+          <div className="flex justify-between">
+            <p>Diskon ({discountLabel})</p>
+            <p className="font-mono">- {formatCurrency(tx.discountAmount)}</p>
+          </div>
+        ) : null}
+        <div className="flex justify-between items-center pt-1">
+          <p className="text-lg font-bold">Grand Total</p>
+          <p className="text-lg font-bold text-primary font-mono">{formatCurrency(tx.grandTotal)}</p>
+        </div>
+        <div className="flex justify-between">
+          <p>Metode</p>
+          <p className="capitalize">{tx.paymentMethod}</p>
+        </div>
+        {tx.paymentMethod === 'cash' && (
+          <>
+            <div className="flex justify-between">
+              <p>Tunai</p>
+              <p className="font-mono">{formatCurrency(tx.cashTendered || 0)}</p>
+            </div>
+            <div className="flex justify-between">
+              <p>Kembali</p>
+              <p className="font-mono">{formatCurrency(tx.change || 0)}</p>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

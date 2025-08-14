@@ -164,8 +164,8 @@ export class ESCPOSPrinter {
 
 
     // Pelanggan
-    output = this.cat(output, this.bold(true), this.enc('PELANGGAN'), this.lf());
-    output = this.cat(output, this.bold(false), this.enc(data.customer.name), this.lf(), this.lf());
+    // output = this.cat(output, this.bold(true), this.enc('PELANGGAN'), this.lf());
+    // output = this.cat(output, this.bold(false), this.enc(data.customer.name), this.lf(), this.lf());
 
     // Barang/Items
     output = this.cat(output, this.bold(true), this.enc('BARANG'), this.lf());
@@ -181,6 +181,23 @@ export class ESCPOSPrinter {
     output = this.cat(output, this.lf());
     output = this.cat(output, this.hr(width), this.lf());
 
+    // Subtotal
+    const subtotalLine = 'Subtotal';
+    const subtotalAmount = this.formatCurrency(data.totals.subtotal);
+    const subtotalSpaces = Math.max(1, width - subtotalLine.length - subtotalAmount.length);
+    output = this.cat(output, this.enc(subtotalLine + ' '.repeat(subtotalSpaces) + subtotalAmount), this.lf());
+
+    // Discount
+    if (data.totals.discount && data.totals.discount > 0) {
+      const discLabel =
+        data.totals.discountType === 'percent'
+          ? `Diskon (${data.totals.discountValue}%)`
+          : `Diskon (${this.formatCurrency(data.totals.discountValue || 0)})`;
+      const discAmount = this.formatCurrency(data.totals.discount);
+      const discSpaces = Math.max(1, width - discLabel.length - discAmount.length);
+      output = this.cat(output, this.enc(discLabel + ' '.repeat(discSpaces) + discAmount), this.lf());
+    }
+
     // Grand Total
     output = this.cat(output, this.bold(true), this.size(0, 1));
     const totalLine = 'Grand Total';
@@ -191,12 +208,17 @@ export class ESCPOSPrinter {
 
     output = this.cat(output, this.hr(width), this.lf());
 
-    // Payment info (if cash payment)
-    if (data.payment?.cash) {
+    // Payment info
+    if (data.payment?.method) {
+      output = this.cat(output, this.enc(`Metode: ${data.payment.method}`), this.lf());
+    }
+    if (data.payment?.cash !== undefined) {
       output = this.cat(output, this.enc(`Tunai: ${this.formatCurrency(data.payment.cash)}`), this.lf());
-      if (data.payment.change) {
-        output = this.cat(output, this.enc(`Kembali: ${this.formatCurrency(data.payment.change)}`), this.lf());
-      }
+    }
+    if (data.payment?.change !== undefined) {
+      output = this.cat(output, this.enc(`Kembali: ${this.formatCurrency(data.payment.change)}`), this.lf());
+    }
+    if (data.payment && (data.payment.method || data.payment.cash !== undefined || data.payment.change !== undefined)) {
       output = this.cat(output, this.lf());
     }
 

@@ -75,20 +75,25 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     let recordToInsert: TablesInsert<'transactions'>;
 
     if (transactionData.type === 'sale') {
-      const grandTotal = transactionData.items.reduce(
-        (sum, item) => sum + item.pricePerItem * item.quantity,
-        0,
-      );
-      recordToInsert = {
-        type: 'sale',
-        customer_name: transactionData.customerName,
-        customer_id: transactionData.customerId,
-        total_amount: grandTotal,
-        details: {
-          items: transactionData.items,
-          payment_method: transactionData.paymentMethod,
-        } as Json,
-      };
+        const subtotal = transactionData.items.reduce((sum, item) => sum + (item.pricePerItem * item.quantity), 0);
+        const discountAmount = transactionData.discountAmount ?? 0;
+        const grandTotal = subtotal - discountAmount;
+        const change = transactionData.cashTendered !== undefined
+          ? (transactionData.cashTendered - grandTotal)
+          : undefined;
+        recordToInsert = {
+            type: 'sale',
+            customer_name: transactionData.customerName,
+            customer_id: transactionData.customerId,
+            payment_method: transactionData.paymentMethod,
+            total_amount: grandTotal,
+            discount_type: transactionData.discountType,
+            discount_value: transactionData.discountValue,
+            discount_amount: discountAmount,
+            cash_tendered: transactionData.cashTendered,
+            change,
+            details: { items: transactionData.items }
+        };
     } else if (transactionData.type === 'service') {
       recordToInsert = {
         type: 'service',

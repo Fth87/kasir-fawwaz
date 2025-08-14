@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -22,10 +22,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -140,31 +140,49 @@ export type Database = {
       }
       transactions: {
         Row: {
+          cash_tendered: number | null
+          change: number | null
           created_at: string
           customer_id: string | null
           customer_name: string | null
           details: Json | null
+          discount_amount: number | null
+          discount_type: string | null
+          discount_value: number | null
           id: string
+          payment_method: string | null
           total_amount: number
           type: string
           user_id: string
         }
         Insert: {
+          cash_tendered?: number | null
+          change?: number | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
           details?: Json | null
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
+          payment_method?: string | null
           total_amount: number
           type: string
           user_id?: string
         }
         Update: {
+          cash_tendered?: number | null
+          change?: number | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
           details?: Json | null
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
+          payment_method?: string | null
           total_amount?: number
           type?: string
           user_id?: string

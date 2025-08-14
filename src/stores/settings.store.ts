@@ -20,7 +20,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const { data, error } = await supabase
       .from('store_settings')
       .select('store_name, store_address, store_phone, store_email')
-      .eq('id', userId)
+      // .eq('id', userId)
       .single();
 
     if (error && error.code !== 'PGRST116') { // Ignore "0 rows" error
