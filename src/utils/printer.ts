@@ -164,8 +164,8 @@ export class ESCPOSPrinter {
 
 
     // Pelanggan
-    output = this.cat(output, this.bold(true), this.enc('PELANGGAN'), this.lf());
-    output = this.cat(output, this.bold(false), this.enc(data.customer.name), this.lf(), this.lf());
+    // output = this.cat(output, this.bold(true), this.enc('PELANGGAN'), this.lf());
+    // output = this.cat(output, this.bold(false), this.enc(data.customer.name), this.lf(), this.lf());
 
     // Barang/Items
     output = this.cat(output, this.bold(true), this.enc('BARANG'), this.lf());

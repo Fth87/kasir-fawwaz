@@ -6,13 +6,13 @@ import Link from 'next/link';
 import { QRCodeCanvas } from 'qrcode.react';
 
 // Hooks & Server Actions
-import { getTransactionById } from '../actions'; // Pastikan path ini benar
-import { useSettingsStore } from '@/stores/settings.store'; // Pastikan path ini benar
-import { usePrinter } from '@/hooks/usePrinter'; // Hook baru untuk cetak RawBT
+import { getTransactionById } from '../actions'; 
+import { useSettingsStore } from '@/stores/settings.store'; 
+import { usePrinter } from '@/hooks/usePrinter'; 
 
 // Mappers & Types
-import { mapSaleToReceiptData, mapServiceToReceiptData } from '@/utils/receipt-mapper'; // Mapper data baru
-import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types'; // Pastikan path ini benar
+import { mapSaleToReceiptData, mapServiceToReceiptData } from '@/utils/receipt-mapper'; 
+import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types'; 
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

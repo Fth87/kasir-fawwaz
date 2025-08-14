@@ -27,8 +27,8 @@ const saleItemSchema = z.object({
 const saleFormSchema = z.object({
   customer: z.object({
     id: z.string().optional(),
-    name: z.string().min(1, 'Nama pelanggan harus diisi'),
-  }),
+    name: z.string(),
+  }).optional(),
   items: z.array(saleItemSchema).min(1, 'Minimal ada satu barang'),
   paymentMethod: z.enum(['cash', 'transfer', 'qris']),
   discountType: z.enum(['percent', 'nominal']),
@@ -80,10 +80,10 @@ export default function RecordSalePage() {
       ? data.cashTendered - totalAfterDiscount
       : undefined;
 
-    const { success, error } = await addTransaction({
+    const { success, error, data: salesData } = await addTransaction({
       type: 'sale',
-      customerName: data.customer.name,
-      customerId: data.customer.id,
+      customerName: data.customer?.name || undefined,
+      customerId: data.customer?.id || undefined,
       paymentMethod: data.paymentMethod,
       discountType: data.discountType,
       discountValue: data.discountValue,
@@ -92,18 +92,17 @@ export default function RecordSalePage() {
       change,
       items: data.items.map(item => ({
         ...item,
-        // The `total` property is not part of the form, so we calculate it here
         total: item.quantity * item.pricePerItem,
       })),
     });
 
-    if (success) {
+    if (success && salesData) {
       toast({
         title: 'Penjualan Tercatat',
         description: 'Transaksi berhasil direkam & stok otomatis diperbarui.',
       });
       form.reset();
-      router.push('/transactions');
+      router.push(`/transactions/${salesData.id}`);
     } else {
       toast({ title: 'Error', description: error?.message || 'Gagal merekam transaksi.', variant: 'destructive' });
     }
@@ -140,7 +139,7 @@ export default function RecordSalePage() {
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Nama Pelanggan</FormLabel>
-                  <CustomerCombobox isLoading={isLoadingCustomers} value={{ ...field.value, id: field.value.id || '' }} onChange={field.onChange} />
+                  <CustomerCombobox isLoading={isLoadingCustomers} value={{ ...(field.value ?? { name: '', id: '' }), id: field.value?.id || '' }} onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}
