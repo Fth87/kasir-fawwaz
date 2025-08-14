@@ -28,11 +28,14 @@ export interface SaleItem {
 export interface Totals {
   subtotal: number;
   discount?: number;
+  discountValue?: number;
+  discountType?: 'percent' | 'nominal';
   tax?: number;
   total: number;
 }
 
 export interface Payment {
+  method?: string;
   cash?: number;
   change?: number;
 }

@@ -168,6 +168,12 @@ function TransactionDetails({ transaction }: { transaction: Transaction }) {
 }
 
 function SaleDetails({ tx }: { tx: SaleTransaction }) {
+  const subtotal = tx.grandTotal + (tx.discountAmount ?? 0);
+  const discountLabel =
+    tx.discountType === 'percent'
+      ? `${tx.discountValue ?? 0}%`
+      : formatCurrency(tx.discountValue ?? 0);
+
   return (
     <>
       {tx.customerName && (
@@ -190,9 +196,37 @@ function SaleDetails({ tx }: { tx: SaleTransaction }) {
         </ul>
       </div>
       <Separator />
-      <div className="flex justify-between items-center">
-        <p className="text-lg font-bold">Grand Total</p>
-        <p className="text-lg font-bold text-primary font-mono">{formatCurrency(tx.grandTotal)}</p>
+      <div className="space-y-1">
+        <div className="flex justify-between">
+          <p>Subtotal</p>
+          <p className="font-mono">{formatCurrency(subtotal)}</p>
+        </div>
+        {tx.discountAmount ? (
+          <div className="flex justify-between">
+            <p>Diskon ({discountLabel})</p>
+            <p className="font-mono">- {formatCurrency(tx.discountAmount)}</p>
+          </div>
+        ) : null}
+        <div className="flex justify-between items-center pt-1">
+          <p className="text-lg font-bold">Grand Total</p>
+          <p className="text-lg font-bold text-primary font-mono">{formatCurrency(tx.grandTotal)}</p>
+        </div>
+        <div className="flex justify-between">
+          <p>Metode</p>
+          <p className="capitalize">{tx.paymentMethod}</p>
+        </div>
+        {tx.paymentMethod === 'cash' && (
+          <>
+            <div className="flex justify-between">
+              <p>Tunai</p>
+              <p className="font-mono">{formatCurrency(tx.cashTendered || 0)}</p>
+            </div>
+            <div className="flex justify-between">
+              <p>Kembali</p>
+              <p className="font-mono">{formatCurrency(tx.change || 0)}</p>
+            </div>
+          </>
+        )}
       </div>
     </>
   );
