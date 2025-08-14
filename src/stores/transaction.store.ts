@@ -10,6 +10,13 @@ type AddServiceInput = Omit<ServiceTransaction, 'id' | 'date' | 'status' | 'prog
 type AddExpenseInput = Omit<ExpenseTransaction, 'id' | 'date'>;
 export type AddTransactionInput = AddSaleInput | AddServiceInput | AddExpenseInput;
 
+export type UpdateTransactionInput = {
+  details?: Record<string, unknown>;
+  customerName?: string;
+  customerId?: string;
+  total_amount?: number;
+};
+
 interface TransactionState {
   transactions: Transaction[];
   isLoading: boolean;
@@ -17,7 +24,7 @@ interface TransactionState {
   fetchData: (pagination: PaginationState, sorting: SortingState, filters: { customerName?: string, type?: TransactionTypeFilter }) => Promise<{ error: Error | null }>;
   addTransaction: (transactionData: AddTransactionInput) => Promise<{ success: boolean; error: Error | null, data?: Transaction | null }>;
   deleteTransaction: (transactionId: string) => Promise<{ success: boolean; error: Error | null }>;
-  updateTransactionDetails: (transactionId: string, updates: any) => Promise<{ success: boolean; error: Error | null }>;
+  updateTransactionDetails: (transactionId: string, updates: UpdateTransactionInput) => Promise<{ success: boolean; error: Error | null }>;
 }
 
 export const useTransactionStore = create<TransactionState>((set) => ({
@@ -57,7 +64,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
 
   addTransaction: async (transactionData) => {
     const supabase = createClient();
-    let recordToInsert: any = { type: transactionData.type };
+    let recordToInsert: Record<string, unknown> = { type: transactionData.type };
 
     if (transactionData.type === 'sale') {
         const grandTotal = transactionData.items.reduce((sum, item) => sum + (item.pricePerItem * item.quantity), 0);
@@ -119,7 +126,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
         return { success: false, error: new Error('Gagal mengambil data transaksi saat ini.') };
     }
 
-    const currentDetails = (typeof currentTx.details === 'object' && currentTx.details !== null ? currentTx.details : {}) as any;
+    const currentDetails = (typeof currentTx.details === 'object' && currentTx.details !== null ? currentTx.details : {}) as Record<string, unknown>;
 
     const newDetails = { ...currentDetails, ...updates.details };
 
@@ -127,8 +134,8 @@ export const useTransactionStore = create<TransactionState>((set) => ({
         .from('transactions')
         .update({
             details: newDetails,
-            customer_name: (updates as any).customerName || currentTx.customer_name,
-            total_amount: (updates as any).serviceFee || currentTx.total_amount,
+            customer_name: updates.customerName ?? currentTx.customer_name,
+            total_amount: updates.total_amount ?? currentTx.total_amount,
          })
         .eq('id', transactionId);
 

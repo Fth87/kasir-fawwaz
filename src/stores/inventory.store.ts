@@ -82,7 +82,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   updateInventoryItem: async (id, updates) => {
     const supabase = createClient();
-    const updatesForDb: { [key: string]: any } = {};
+    const updatesForDb: Record<string, unknown> = {};
     if (updates.name) updatesForDb.name = updates.name;
     if (updates.sku) updatesForDb.sku = updates.sku;
     if (updates.stockQuantity !== undefined) updatesForDb.stock_quantity = updates.stockQuantity;

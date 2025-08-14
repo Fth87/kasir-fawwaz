@@ -50,7 +50,7 @@ export async function getUsers(
       createdAt: user.created_at,
     }));
 
-    return { data: { users: formattedUsers, count: (data as any).total ?? 0 }, error: null };
+    return { data: { users: formattedUsers, count: (data as { total?: number }).total ?? 0 }, error: null };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan tidak dikenal.";

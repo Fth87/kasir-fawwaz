@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, type FieldError } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useTransactionStore } from '@/stores/transaction.store';
+import { useTransactionStore, type UpdateTransactionInput } from '@/stores/transaction.store';
 import { getTransactionById } from '@/app/transactions/actions';
 import type { Transaction, SaleItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -72,7 +72,7 @@ export default function EditTransactionPage() {
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     // This needs to be cast as `items` is not on all types
-    name: 'items' as 'items',
+    name: 'items' as const,
   });
 
   useEffect(() => {
@@ -102,14 +102,11 @@ export default function EditTransactionPage() {
     setIsLoading(true);
 
     // let updatePayload: Partial<Transaction> = {};
-    let updatePayload: Partial<Transaction> & {
-      details?: any;
-      total_amount?: number;
-    } = {};
+    let updatePayload: UpdateTransactionInput = {};
 
     if (data.type === 'sale' && transaction.type === 'sale') {
       const saleData = data as Extract<EditTransactionFormValues, { type: 'sale' }>;
-      const itemsWithTotals = saleData.items.map((item, index) => {
+      const itemsWithTotals = saleData.items.map((item) => {
         return { ...item, id: item.id || crypto.randomUUID(), total: item.quantity * item.pricePerItem };
       });
       const grandTotal = itemsWithTotals.reduce((sum, i) => sum + i.total, 0);
@@ -151,17 +148,19 @@ export default function EditTransactionPage() {
   }
 
   const calculateSaleItemTotal = (itemIndex: number) => {
-    const items = form.watch('items' as any) as SaleItem[] | undefined;
+    const items = form.watch('items' as const) as SaleItem[] | undefined;
     if (!items || !items[itemIndex]) return 0;
     const item = items[itemIndex];
     return (item.quantity || 0) * (item.pricePerItem || 0);
   };
 
   const calculateSaleGrandTotal = () => {
-    const items = form.watch('items' as any) as SaleItem[] | undefined;
+    const items = form.watch('items' as const) as SaleItem[] | undefined;
     if (!items) return 0;
     return items.reduce((acc, item) => acc + (item.quantity || 0) * (item.pricePerItem || 0), 0);
   };
+
+  const itemsError = form.formState.errors.items as FieldError | undefined;
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -250,8 +249,8 @@ export default function EditTransactionPage() {
                   {' '}
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Item{' '}
                 </Button>
-                {'items' in form.formState.errors && form.formState.errors.items && typeof form.formState.errors.items === 'object' && 'message' in form.formState.errors.items && (
-                  <p className="text-sm font-medium text-destructive">{(form.formState.errors.items as any).message}</p>
+                {itemsError?.message && (
+                  <p className="text-sm font-medium text-destructive">{itemsError.message}</p>
                 )}
                 <div className="text-right text-lg font-bold">Grand Total: IDR {calculateSaleGrandTotal().toLocaleString('id-ID')}</div>
               </>
