@@ -205,7 +205,7 @@ export default function RecordSalePage() {
                                   return;
                                 }
                                 if (value > maxStock) {
-                                  alert(`Stok ${selectedItem?.name ?? ''} hanya tersisa ${selectedItem?.stockQuantity ?? 0}`);
+                                  toast({ description: `Stok ${selectedItem?.name ?? ''} hanya tersisa ${selectedItem?.stockQuantity ?? 0}`, variant: 'destructive', color: 'red' });
                                   field.onChange(selectedItem?.stockQuantity);
                                 } else {
                                   field.onChange(value);
