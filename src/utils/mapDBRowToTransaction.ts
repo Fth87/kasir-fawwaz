@@ -35,6 +35,10 @@ export function mapDbRowToTransaction(tx: any): Transaction | null {
         device: details.device,
         issueDescription: details.issueDescription,
         status: details.status,
+        partsCost:
+          typeof details.partsCost === 'string'
+            ? parseFloat(details.partsCost)
+            : (details.partsCost ?? 0),
         progressNotes: details.progressNotes ?? [],
       } as ServiceTransaction;
 

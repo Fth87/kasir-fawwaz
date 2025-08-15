@@ -36,6 +36,7 @@ const serviceSchema = z.object({
   device: z.string().min(1, 'Nama perangkat harus diisi'),
   issueDescription: z.string().min(1, 'Deskripsi masalah harus diisi'),
   serviceFee: z.coerce.number().min(0, 'Biaya servis tidak boleh negatif'),
+  partsCost: z.coerce.number().min(0, 'Biaya barang tidak boleh negatif'),
   status: z.enum(ServiceStatusOptions.map(opt => opt.value) as [ServiceStatusValue, ...ServiceStatusValue[]]),
   customerId: z.string().optional(),
 });
@@ -162,6 +163,7 @@ function ServiceDialog({ children, item, onSuccess, addService, updateService }:
     device: item?.device || '',
     issueDescription: item?.issueDescription || '',
     serviceFee: item?.serviceFee || 0,
+    partsCost: item?.partsCost || 0,
     status: item?.status || 'PENDING_CONFIRMATION',
     customerId: item?.customerId || undefined,
   }), [item]);
@@ -176,7 +178,18 @@ function ServiceDialog({ children, item, onSuccess, addService, updateService }:
   const onSubmit = (data: ServiceFormValues) => {
     startTransition(async () => {
       const result = item
-        ? await updateService(item.id, { details: { serviceName: data.serviceName, device: data.device, issueDescription: data.issueDescription, status: data.status }, customerName: data.customerName, customerId: data.customerId, total_amount: data.serviceFee })
+        ? await updateService(item.id, {
+            details: {
+              serviceName: data.serviceName,
+              device: data.device,
+              issueDescription: data.issueDescription,
+              status: data.status,
+              partsCost: data.partsCost,
+            },
+            customerName: data.customerName,
+            customerId: data.customerId,
+            total_amount: data.serviceFee,
+          })
         : await addService({ ...data, type: 'service' });
 
       if (result.success) {
@@ -201,9 +214,45 @@ function ServiceDialog({ children, item, onSuccess, addService, updateService }:
             <FormField control={form.control} name="device" render={({ field }) => (<FormItem><FormLabel>Perangkat</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
             <FormField control={form.control} name="issueDescription" render={({ field }) => (<FormItem><FormLabel>Deskripsi Masalah</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="serviceFee" render={({ field }) => (<FormItem><FormLabel>Biaya Servis</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status Servis</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Pilih status..." /></SelectTrigger></FormControl><SelectContent>{ServiceStatusOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Biaya Servis</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="partsCost" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Biaya Barang</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status Servis</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih status..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {ServiceStatusOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={isPending}>{isPending ? <Loader2 className="animate-spin" /> : 'Simpan'}</Button></DialogFooter>
           </form>
         </Form>

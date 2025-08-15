@@ -105,6 +105,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
           device: transactionData.device,
           issueDescription: transactionData.issueDescription,
           status: transactionData.status || 'PENDING_CONFIRMATION',
+          partsCost: transactionData.partsCost || 0,
           progressNotes: [],
         } as Json,
       };

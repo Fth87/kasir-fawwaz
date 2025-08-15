@@ -42,6 +42,7 @@ const serviceEditSchema = z.object({
     .refine((val) => !val || /^[0-9\s+-]+$/.test(val), { message: 'Invalid phone number format' }),
   customerAddress: z.string().optional(),
   serviceFee: z.coerce.number().min(0, 'Service fee must be non-negative'),
+  partsCost: z.coerce.number().min(0, 'Parts cost must be non-negative'),
 });
 
 const expenseEditSchema = z.object({
@@ -87,7 +88,7 @@ export default function EditTransactionPage() {
           if (tx.type === 'sale') {
             form.reset({ type: 'sale', customerName: tx.customerName || '', items: tx.items.map((item) => ({ ...item })) });
           } else if (tx.type === 'service') {
-            form.reset({ type: 'service', serviceName: tx.serviceName, customerName: tx.customerName || '', customerPhone: tx.customerPhone || '', customerAddress: tx.customerAddress || '', serviceFee: tx.serviceFee });
+            form.reset({ type: 'service', serviceName: tx.serviceName, customerName: tx.customerName || '', customerPhone: tx.customerPhone || '', customerAddress: tx.customerAddress || '', serviceFee: tx.serviceFee, partsCost: tx.partsCost || 0 });
           } else if (tx.type === 'expense') {
             form.reset({ type: 'expense', description: tx.description, category: tx.category || '', amount: tx.amount });
           }
@@ -112,7 +113,16 @@ export default function EditTransactionPage() {
       const grandTotal = itemsWithTotals.reduce((sum, i) => sum + i.total, 0);
       updatePayload = { customerName: saleData.customerName, details: { items: itemsWithTotals }, total_amount: grandTotal };
     } else if (data.type === 'service') {
-      updatePayload = { customerName: data.customerName, total_amount: data.serviceFee, details: { serviceName: data.serviceName, device: 'N/A', issueDescription: 'N/A' } };
+      updatePayload = {
+        customerName: data.customerName,
+        total_amount: data.serviceFee,
+        details: {
+          serviceName: data.serviceName,
+          device: 'N/A',
+          issueDescription: 'N/A',
+          partsCost: data.partsCost,
+        },
+      };
     } else if (data.type === 'expense') {
       updatePayload = {
         total_amount: data.amount,
@@ -332,6 +342,19 @@ export default function EditTransactionPage() {
                         <Input type="number" placeholder="150000" {...field} />
                       </FormControl>{' '}
                       <FormMessage />{' '}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="partsCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Biaya Barang (IDR)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="50000" {...field} />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
