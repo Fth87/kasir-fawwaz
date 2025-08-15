@@ -56,6 +56,7 @@ export type ServiceTransaction = {
   customerAddress?: string;
   customerId?: string; // Optional: to link to a specific customer in CRM
   serviceFee: number;
+  partsCost?: number; // Cost of parts or goods used for the service
   status: ServiceStatusValue;
   progressNotes: ProgressNote[];
 };

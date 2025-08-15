@@ -34,7 +34,10 @@ export function useReports(transactions: Transaction[]) {
   const rangeRecap = useMemo(() => {
     return filteredTransactions.reduce((acc, tx) => {
       if (tx.type === 'sale') acc.totalSales += tx.grandTotal;
-      if (tx.type === 'service') acc.totalServices += tx.serviceFee;
+      if (tx.type === 'service') {
+        acc.totalServices += tx.serviceFee;
+        acc.totalExpenses += tx.partsCost || 0;
+      }
       if (tx.type === 'expense') acc.totalExpenses += tx.amount;
       return acc;
     }, { totalSales: 0, totalServices: 0, totalExpenses: 0 });
@@ -54,7 +57,10 @@ export function useReports(transactions: Transaction[]) {
       const monthlyTotals = transactions.reduce((acc, tx) => {
         if (format(parseISO(tx.date), 'yyyy-MM') === format(monthStart, 'yyyy-MM')) {
           if (tx.type === 'sale') acc.sales += tx.grandTotal;
-          if (tx.type === 'service') acc.services += tx.serviceFee;
+          if (tx.type === 'service') {
+            acc.services += tx.serviceFee;
+            acc.expenses += tx.partsCost || 0;
+          }
           if (tx.type === 'expense') acc.expenses += tx.amount;
         }
         return acc;
@@ -73,6 +79,10 @@ export function useReports(transactions: Transaction[]) {
       if (tx.type === 'expense') {
         const category = tx.category || 'Lain-lain';
         acc[category] = (acc[category] || 0) + tx.amount;
+      }
+      if (tx.type === 'service' && tx.partsCost) {
+        const category = 'Biaya Barang Servis';
+        acc[category] = (acc[category] || 0) + tx.partsCost;
       }
       return acc;
     }, {} as { [key: string]: number });

@@ -235,6 +235,15 @@ function ServiceDetails({ tx, qrCodeUrl }: { tx: ServiceTransaction; qrCodeUrl: 
         <p className="text-lg font-bold">Biaya Servis</p>
         <p className="text-lg font-bold text-primary font-mono">{formatCurrency(tx.serviceFee)}</p>
       </div>
+      {(tx.partsCost ?? 0) > 0 && (
+        <>
+          <Separator />
+          <div className="flex justify-between items-center">
+            <p className="text-lg font-bold">Biaya Barang</p>
+            <p className="text-lg font-bold text-primary font-mono">{formatCurrency(tx.partsCost ?? 0)}</p>
+          </div>
+        </>
+      )}
       <Separator />
       {qrCodeUrl && (
         <div className="text-center">
