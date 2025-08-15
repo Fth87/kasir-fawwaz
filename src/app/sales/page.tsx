@@ -197,9 +197,13 @@ export default function RecordSalePage() {
                               placeholder="Jml"
                               min={1}
                               max={selectedItem?.stockQuantity}
-                              {...field}
+                              value={field.value ?? ''}
                               onChange={(e) => {
                                 const value = e.target.valueAsNumber;
+                                if (Number.isNaN(value)) {
+                                  field.onChange(undefined);
+                                  return;
+                                }
                                 if (value > maxStock) {
                                   alert(`Stok ${selectedItem?.name ?? ''} hanya tersisa ${selectedItem?.stockQuantity ?? 0}`);
                                   field.onChange(selectedItem?.stockQuantity);
@@ -221,7 +225,15 @@ export default function RecordSalePage() {
                       <FormItem className="col-span-8 md:col-span-4">
                         <FormLabel className="sr-only">Harga/Item</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="Harga" {...field} />
+                          <Input
+                            type="number"
+                            placeholder="Harga"
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const value = e.target.valueAsNumber;
+                              field.onChange(Number.isNaN(value) ? undefined : value);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -314,7 +326,14 @@ export default function RecordSalePage() {
                 <FormItem>
                   <FormLabel>{discountType === 'percent' ? 'Nilai Diskon (%)' : 'Nilai Diskon (Rp)'}</FormLabel>
                   <FormControl>
-                    <Input type="number" {...field} value={field.value ?? ''} />
+                    <Input
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.valueAsNumber;
+                        field.onChange(Number.isNaN(value) ? undefined : value);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -337,7 +356,14 @@ export default function RecordSalePage() {
                   <FormItem>
                     <FormLabel>Nominal Cash</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} value={field.value ?? ''} />
+                      <Input
+                        type="number"
+                        value={field.value ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.valueAsNumber;
+                          field.onChange(Number.isNaN(value) ? undefined : value);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
