@@ -30,7 +30,10 @@ const newItemSchema = z.object({
   sellingPrice: z.coerce.number().min(0, 'Harga jual harus diisi'),
   purchasePrice: z.coerce.number().min(0, 'Harga beli harus diisi'),
   stockQuantity: z.coerce.number().int().min(0, 'Stok awal harus diisi'),
-  sku: z.string().optional(),
+  sku: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim() !== '' ? val.trim() : undefined)),
 });
 type NewItemFormValues = z.infer<typeof newItemSchema>;
 
