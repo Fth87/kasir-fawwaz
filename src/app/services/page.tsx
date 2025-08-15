@@ -55,15 +55,25 @@ export default function RecordServicePage() {
   useEffect(() => {
     void fetchCustomers({ pageIndex: 0, pageSize: 100 }, [], {});
   }, [fetchCustomers]);
-    const onSubmit = async (data: ServiceFormValues) => {
-      const result =  await addTransaction({ ...data, type: 'service' });
-      if (result.success && result.data) {
-        toast({ title: 'Servis Tercatat', description: 'Transaksi servis berhasil direkam.' });
-        router.push(`/transactions/${result.data.id}`);
-        form.reset();
-      } else {
-        toast({ title: 'Error', description: result.error?.message || 'Gagal menyimpan data servis.', variant: 'destructive' });
-      }
+
+  const onSubmit = async (data: ServiceFormValues) => {
+    const result = await addTransaction({
+      type: 'service',
+      serviceName: data.serviceName,
+      device: data.device,
+      issueDescription: data.issueDescription,
+      serviceFee: data.serviceFee,
+      customerName: data.customer.name,
+      customerId: data.customer.id,
+    });
+
+    if (result.success && result.data) {
+      toast({ title: 'Servis Tercatat', description: 'Transaksi servis berhasil direkam.' });
+      router.push(`/transactions/${result.data.id}`);
+      form.reset();
+    } else {
+      toast({ title: 'Error', description: result.error?.message || 'Gagal menyimpan data servis.', variant: 'destructive' });
+    }
   };
 
   return (
