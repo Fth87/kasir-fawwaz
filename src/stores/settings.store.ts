@@ -3,24 +3,29 @@ import { createClient } from '@/lib/supabase/client';
 import type { StoreSettings } from '@/types';
 import { useAuthStore } from './auth.store';
 
+// Use a fixed UUID so all accounts read and write the same row
+const GLOBAL_SETTINGS_ID = '00000000-0000-0000-0000-000000000000';
+
 interface SettingsState {
   settings: StoreSettings | null;
   isLoadingSettings: boolean;
-  fetchSettings: (userId: string) => Promise<{ error: Error | null }>;
-  updateSettings: (newSettings: Partial<StoreSettings>) => Promise<{ success: boolean; error: string | null; successMessage?: string; }>;
+  fetchSettings: () => Promise<{ error: Error | null }>;
+  updateSettings: (
+    newSettings: Partial<StoreSettings>
+  ) => Promise<{ success: boolean; error: string | null; successMessage?: string }>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: null,
   isLoadingSettings: true,
 
-  fetchSettings: async (userId) => {
+  fetchSettings: async () => {
     set({ isLoadingSettings: true });
     const supabase = createClient();
     const { data, error } = await supabase
       .from('store_settings')
       .select('store_name, store_address, store_phone, store_email')
-      // .eq('id', userId)
+      .eq('id', GLOBAL_SETTINGS_ID)
       .single();
 
     if (error && error.code !== 'PGRST116') { // Ignore "0 rows" error
@@ -40,7 +45,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         isLoadingSettings: false,
       });
     } else {
-      set({ settings: null, isLoadingSettings: false }); // No settings found for this user
+      set({ settings: null, isLoadingSettings: false }); // No settings found
     }
     return { error: null };
   },
@@ -58,7 +63,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
 
     const settingsForDb = {
-      id: user.id,
+      id: GLOBAL_SETTINGS_ID,
       store_name: finalSettings.storeName,
       store_address: finalSettings.storeAddress || null,
       store_phone: finalSettings.storePhone || null,
@@ -84,7 +89,7 @@ useAuthStore.subscribe(
     // Fetch settings only when the user ID changes (login/logout)
     if (state.user?.id !== prevState.user?.id) {
       if (state.user) {
-        useSettingsStore.getState().fetchSettings(state.user.id);
+        useSettingsStore.getState().fetchSettings();
       } else {
         // Clear settings on logout
         useSettingsStore.setState({ settings: null, isLoadingSettings: false });

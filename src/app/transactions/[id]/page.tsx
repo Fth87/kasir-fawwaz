@@ -39,7 +39,7 @@ export default function ReceiptPage() {
   useEffect(() => {
     if (transactionId) {
       setIsFetching(true);
-      fetchSettings('');
+      fetchSettings();
       getTransactionById(transactionId)
         .then(({ data }) => {
           setTransaction(data);
@@ -50,7 +50,7 @@ export default function ReceiptPage() {
           setTransaction(null);
         });
     }
-  }, [transactionId]);
+  }, [transactionId, fetchSettings]);
 
   // Fungsi baru untuk menangani pencetakan via RawBT
   const handleRawBtPrint = () => {
