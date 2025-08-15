@@ -132,15 +132,19 @@ export const useTransactionStore = create<TransactionState>((set) => ({
   deleteTransaction: async (transactionId) => {
     const supabase = createClient();
     const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
-    if (error) console.error('Error deleting transaction:', error);
-    return { success: !error, error: error as Error | null };
+    if (error) {
+      console.error('Error deleting transaction:', error);
+      return { success: false, error: error as Error };
+    }
+    set((state) => ({ transactions: state.transactions.filter((tx) => tx.id !== transactionId) }));
+    return { success: true, error: null };
   },
 
   updateTransactionDetails: async (transactionId, updates) => {
     const supabase = createClient();
     const { data: currentTx, error: fetchError } = await supabase
         .from('transactions')
-        .select('details, total_amount, customer_name')
+        .select('details, total_amount, customer_name, customer_id')
         .eq('id', transactionId)
         .single();
 
@@ -163,6 +167,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
         .update({
             details: newDetails as Json,
             customer_name: updates.customerName ?? currentTx.customer_name,
+            customer_id: updates.customerId ?? currentTx.customer_id,
             total_amount: updates.total_amount ?? currentTx.total_amount,
          })
         .eq('id', transactionId);
