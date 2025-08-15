@@ -65,7 +65,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   addInventoryItem: async (itemData) => {
     const supabase = createClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('inventory_items')
       .insert({
         name: itemData.name,
@@ -74,10 +74,28 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         purchase_price: itemData.purchasePrice,
         selling_price: itemData.sellingPrice,
         low_stock_threshold: itemData.lowStockThreshold,
-      });
+      })
+      .select()
+      .single();
 
-    if (error) console.error('Error adding inventory item:', error);
-    return { success: !error, error: error as Error | null };
+    if (error) {
+      console.error('Error adding inventory item:', error);
+      return { success: false, error: error as Error };
+    }
+
+    const formattedItem: InventoryItem = {
+      id: data.id,
+      name: data.name,
+      sku: data.sku || undefined,
+      stockQuantity: data.stock_quantity,
+      purchasePrice: data.purchase_price || 0,
+      sellingPrice: data.selling_price,
+      lowStockThreshold: data.low_stock_threshold || undefined,
+      lastRestocked: data.last_restocked || undefined,
+    };
+
+    set((state) => ({ inventoryItems: [...state.inventoryItems, formattedItem] }));
+    return { success: true, error: null };
   },
 
   updateInventoryItem: async (id, updates) => {
