@@ -9,15 +9,18 @@ const formatCurrency = (amount: number) => new Intl.NumberFormat('id-ID', { styl
 export function TransactionDetailTable({ transactions }: { transactions: Transaction[] }) {
   const getTransactionSummary = (tx: Transaction) => {
     if (tx.type === 'sale') return `Penjualan: ${tx.items.length} barang`;
-    if (tx.type === 'service') return `Servis: ${tx.serviceName}`;
+    if (tx.type === 'service') {
+      const partsInfo = tx.partsCost ? ` (Biaya Barang: ${formatCurrency(tx.partsCost)})` : '';
+      return `Servis: ${tx.serviceName}${partsInfo}`;
+    }
     if (tx.type === 'expense') return `Pengeluaran: ${tx.description}`;
     return 'Unknown';
   };
-  
+
   const getTransactionAmount = (tx: Transaction) => {
     if (tx.type === 'sale') return tx.grandTotal;
-    if (tx.type === 'service') return tx.serviceFee;
-    if (tx.type === 'expense') return tx.amount;
+    if (tx.type === 'service') return tx.serviceFee - (tx.partsCost || 0);
+    if (tx.type === 'expense') return -tx.amount;
     return 0;
   };
 
@@ -43,10 +46,16 @@ export function TransactionDetailTable({ transactions }: { transactions: Transac
                <Badge variant={tx.type === 'expense' ? 'destructive' : tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">{tx.type}</Badge>
             </TableCell>
             <TableCell>{getTransactionSummary(tx)}</TableCell>
-            <TableCell className={`text-right font-medium ${tx.type === 'expense' ? 'text-destructive' : 'text-green-600'}`}>
-              {tx.type === 'expense' ? '-' : '+'}
-              {formatCurrency(getTransactionAmount(tx))}
-            </TableCell>
+            {(() => {
+              const amount = getTransactionAmount(tx);
+              const isNegative = amount < 0;
+              return (
+                <TableCell className={`text-right font-medium ${isNegative ? 'text-destructive' : 'text-green-600'}`}>
+                  {isNegative ? '-' : '+'}
+                  {formatCurrency(Math.abs(amount))}
+                </TableCell>
+              );
+            })()}
           </TableRow>
         ))}
       </TableBody>
