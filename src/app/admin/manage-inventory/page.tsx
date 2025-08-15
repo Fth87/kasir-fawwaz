@@ -31,7 +31,10 @@ import { RestockDialog } from '@/components/ui/restock-dialog';
 // Zod Schema
 const inventoryItemSchema = z.object({
   name: z.string().min(1, 'Nama barang harus diisi'),
-  sku: z.string().optional(),
+  sku: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim() !== '' ? val.trim() : undefined)),
   stockQuantity: z.coerce.number().int().min(0, 'Stok tidak boleh negatif'),
   purchasePrice: z.coerce.number().min(0, 'Harga beli tidak boleh negatif'),
   sellingPrice: z.coerce.number().min(0, 'Harga jual tidak boleh negatif'),

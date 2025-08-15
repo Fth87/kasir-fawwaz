@@ -4,6 +4,12 @@ import type { InventoryItem, NewInventoryItemInput, UpdateInventoryItemInput } f
 import type { PaginationState, SortingState } from '@tanstack/react-table';
 import type { DateRange } from 'react-day-picker';
 
+const generateSku = (name: string): string => {
+  const prefix = name.replace(/\s+/g, '').toUpperCase().slice(0, 3);
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `${prefix}-${random}`;
+};
+
 interface InventoryState {
   inventoryItems: InventoryItem[];
   isLoading: boolean;
@@ -65,19 +71,38 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   addInventoryItem: async (itemData) => {
     const supabase = createClient();
-    const { error } = await supabase
+    const sku = itemData.sku && itemData.sku.trim() !== '' ? itemData.sku.trim() : generateSku(itemData.name);
+    const { data, error } = await supabase
       .from('inventory_items')
       .insert({
         name: itemData.name,
-        sku: itemData.sku,
+        sku,
         stock_quantity: itemData.stockQuantity,
         purchase_price: itemData.purchasePrice,
         selling_price: itemData.sellingPrice,
         low_stock_threshold: itemData.lowStockThreshold,
-      });
+      })
+      .select()
+      .single();
 
-    if (error) console.error('Error adding inventory item:', error);
-    return { success: !error, error: error as Error | null };
+    if (error) {
+      console.error('Error adding inventory item:', error);
+      return { success: false, error: error as Error };
+    }
+
+    const formattedItem: InventoryItem = {
+      id: data.id,
+      name: data.name,
+      sku: data.sku || undefined,
+      stockQuantity: data.stock_quantity,
+      purchasePrice: data.purchase_price || 0,
+      sellingPrice: data.selling_price,
+      lowStockThreshold: data.low_stock_threshold || undefined,
+      lastRestocked: data.last_restocked || undefined,
+    };
+
+    set((state) => ({ inventoryItems: [...state.inventoryItems, formattedItem] }));
+    return { success: true, error: null };
   },
 
   updateInventoryItem: async (id, updates) => {
