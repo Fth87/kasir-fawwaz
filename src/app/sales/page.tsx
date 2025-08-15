@@ -43,7 +43,7 @@ type SaleFormValues = z.infer<typeof saleFormSchema>;
 export default function RecordSalePage() {
   const {  isLoading: isLoadingCustomers, fetchData: fetchCustomers } = useCustomerStore();
   const { addTransaction } = useTransactionStore();
-  const {  isLoading: isLoadingInventory, fetchData: fetchInventory } = useInventoryStore();
+  const {  isLoading: isLoadingInventory, fetchData: fetchInventory, findItemByName } = useInventoryStore();
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +71,19 @@ export default function RecordSalePage() {
 
   const onSubmit = async (data: SaleFormValues) => {
     setIsLoading(true);
+    for (const item of data.items) {
+      const inventoryItem = findItemByName(item.name);
+      if (!inventoryItem) {
+        alert(`Barang ${item.name} tidak ditemukan.`);
+        setIsLoading(false);
+        return;
+      }
+      if (item.quantity > inventoryItem.stockQuantity) {
+        alert(`Stok ${item.name} hanya tersisa ${inventoryItem.stockQuantity}`);
+        setIsLoading(false);
+        return;
+      }
+    }
     const subtotal = data.items.reduce((acc, item) => acc + item.quantity * item.pricePerItem, 0);
     const discountAmount = data.discountType === 'percent'
       ? (subtotal * (data.discountValue || 0)) / 100
@@ -172,15 +185,34 @@ export default function RecordSalePage() {
                   <FormField
                     control={form.control}
                     name={`items.${index}.quantity`}
-                    render={({ field }) => (
-                      <FormItem className="col-span-4 md:col-span-2">
-                        <FormLabel className="sr-only">Jumlah</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="Jml" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const selectedItem = findItemByName(form.watch(`items.${index}.name`));
+                      const maxStock = selectedItem?.stockQuantity ?? Number.POSITIVE_INFINITY;
+                      return (
+                        <FormItem className="col-span-4 md:col-span-2">
+                          <FormLabel className="sr-only">Jumlah</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Jml"
+                              min={1}
+                              max={selectedItem?.stockQuantity}
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.valueAsNumber;
+                                if (value > maxStock) {
+                                  alert(`Stok ${selectedItem?.name ?? ''} hanya tersisa ${selectedItem?.stockQuantity ?? 0}`);
+                                  field.onChange(selectedItem?.stockQuantity);
+                                } else {
+                                  field.onChange(value);
+                                }
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <FormField
                     control={form.control}

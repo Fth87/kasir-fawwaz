@@ -110,20 +110,22 @@ export function InventoryCombobox({ value, onSelect, isLoading = false }: Invent
                     </DialogTrigger>
                   </CommandEmpty>
                   <CommandGroup>
-                    {inventoryItems.map((item) => (
-                      <CommandItem
-                        key={item.id}
-                        value={item.name}
-                        onSelect={() => {
-                          onSelect({ name: item.name, price: item.sellingPrice });
-                          setOpen(false);
-                          setSearchQuery('');
-                        }}
-                      >
-                        <Check className={cn('mr-2 h-4 w-4', value === item.name ? 'opacity-100' : 'opacity-0')} />
-                        {item.name}
-                      </CommandItem>
-                    ))}
+                    {inventoryItems
+                      .filter((item) => item.stockQuantity > 0)
+                      .map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          value={item.name}
+                          onSelect={() => {
+                            onSelect({ name: item.name, price: item.sellingPrice });
+                            setOpen(false);
+                            setSearchQuery('');
+                          }}
+                        >
+                          <Check className={cn('mr-2 h-4 w-4', value === item.name ? 'opacity-100' : 'opacity-0')} />
+                          {item.name}
+                        </CommandItem>
+                      ))}
                   </CommandGroup>
                 </>
               )}
