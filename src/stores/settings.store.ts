@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/client';
 import type { StoreSettings } from '@/types';
 import { useAuthStore } from './auth.store';
 
-const GLOBAL_SETTINGS_ID = 'global';
+// Use a fixed UUID so all accounts read and write the same row
+const GLOBAL_SETTINGS_ID = '00000000-0000-0000-0000-000000000000';
 
 interface SettingsState {
   settings: StoreSettings | null;
