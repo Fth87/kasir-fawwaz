@@ -58,13 +58,6 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   addCustomer: async (customerData) => {
     const supabase = createClient();
-    if (customerData.phone) {
-      const { data: existing } = await supabase.from('customers').select('id').eq('phone', customerData.phone).single();
-      if (existing) {
-        return { customer: null, error: new Error('Nomor telepon sudah digunakan pelanggan lain.') };
-      }
-    }
-
     const { data: newCustomerData, error } = await supabase.from('customers').insert(customerData).select().single();
 
     if (error) {
@@ -82,6 +75,7 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       updatedAt: newCustomerData.updated_at,
     };
 
+    set((state) => ({ customers: [...state.customers, formattedCustomer] }));
     return { customer: formattedCustomer, error: null };
   },
 
