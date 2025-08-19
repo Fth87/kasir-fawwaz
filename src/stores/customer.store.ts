@@ -64,33 +64,45 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       .select()
       .single();
 
-    // Gracefully handle duplicate phone numbers. Instead of throwing an error
-    // when the database unique constraint is triggered, fetch the existing
-    // customer with the same phone number and return it as if it was newly
-    // created. This prevents console errors and keeps the UI flow smooth.
-    if (error?.code === '23505' && customerData.phone) {
-      const { data: existingCustomer, error: fetchError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', customerData.phone)
-        .single();
-
-      if (!fetchError && existingCustomer) {
-        const formattedExisting: Customer = {
-          id: existingCustomer.id,
-          name: existingCustomer.name,
-          phone: existingCustomer.phone || undefined,
-          address: existingCustomer.address || undefined,
-          notes: existingCustomer.notes || undefined,
-          createdAt: existingCustomer.created_at,
-          updatedAt: existingCustomer.updated_at,
-        };
-        set((state) => ({ customers: [...state.customers, formattedExisting] }));
-        return { customer: formattedExisting, error: null };
-      }
-    }
-
     if (error) {
+      // Handle duplicate phone numbers gracefully by returning the existing
+      // customer instead of logging an error. This avoids noisy console
+      // output while allowing the UI to continue with the existing record.
+      if (error.code === '23505' && customerData.phone) {
+        const state = get();
+        let existing = state.customers.find((c) => c.phone === customerData.phone);
+
+        if (!existing) {
+          const { data: existingCustomer, error: fetchError } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('phone', customerData.phone)
+            .single();
+
+          if (!fetchError && existingCustomer) {
+            existing = {
+              id: existingCustomer.id,
+              name: existingCustomer.name,
+              phone: existingCustomer.phone || undefined,
+              address: existingCustomer.address || undefined,
+              notes: existingCustomer.notes || undefined,
+              createdAt: existingCustomer.created_at,
+              updatedAt: existingCustomer.updated_at,
+            };
+
+            set((state) => ({
+              customers: state.customers.some((c) => c.id === existing!.id)
+                ? state.customers
+                : [...state.customers, existing!],
+            }));
+          }
+        }
+
+        if (existing) {
+          return { customer: existing, error: null };
+        }
+      }
+
       console.error('Error adding customer:', error);
       return { customer: null, error };
     }
