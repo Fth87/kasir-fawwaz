@@ -58,7 +58,37 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   addCustomer: async (customerData) => {
     const supabase = createClient();
-    const { data: newCustomerData, error } = await supabase.from('customers').insert(customerData).select().single();
+    const { data: newCustomerData, error } = await supabase
+      .from('customers')
+      .insert(customerData)
+      .select()
+      .single();
+
+    // Gracefully handle duplicate phone numbers. Instead of throwing an error
+    // when the database unique constraint is triggered, fetch the existing
+    // customer with the same phone number and return it as if it was newly
+    // created. This prevents console errors and keeps the UI flow smooth.
+    if (error?.code === '23505' && customerData.phone) {
+      const { data: existingCustomer, error: fetchError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone', customerData.phone)
+        .single();
+
+      if (!fetchError && existingCustomer) {
+        const formattedExisting: Customer = {
+          id: existingCustomer.id,
+          name: existingCustomer.name,
+          phone: existingCustomer.phone || undefined,
+          address: existingCustomer.address || undefined,
+          notes: existingCustomer.notes || undefined,
+          createdAt: existingCustomer.created_at,
+          updatedAt: existingCustomer.updated_at,
+        };
+        set((state) => ({ customers: [...state.customers, formattedExisting] }));
+        return { customer: formattedExisting, error: null };
+      }
+    }
 
     if (error) {
       console.error('Error adding customer:', error);
