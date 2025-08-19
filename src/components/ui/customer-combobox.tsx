@@ -68,6 +68,7 @@ export function CustomerCombobox({ value, onChange, isLoading = false }: Custome
       setDialogOpen(false);
       setOpen(false);
       form.reset();
+      form.clearErrors();
       setSearchQuery('');
     } else {
       toast({
@@ -84,7 +85,7 @@ export function CustomerCombobox({ value, onChange, isLoading = false }: Custome
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+          <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal">
             <div className="flex items-center truncate">
               <UserCircle className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="truncate">{selectedCustomerName || 'Pilih atau tambah pelanggan...'}</span>
@@ -104,7 +105,7 @@ export function CustomerCombobox({ value, onChange, isLoading = false }: Custome
                 <>
                   <CommandEmpty className="p-1">
                     <DialogTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-start text-left h-auto py-2">
+                      <Button type="button" variant="ghost" className="w-full justify-start text-left h-auto py-2">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         <div>
                           <p>Tambah Pelanggan Baru </p>
