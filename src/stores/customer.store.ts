@@ -58,51 +58,17 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   addCustomer: async (customerData) => {
     const supabase = createClient();
+    const payload = {
+      ...customerData,
+      phone: customerData.phone?.trim() || null,
+    };
     const { data: newCustomerData, error } = await supabase
       .from('customers')
-      .insert(customerData)
+      .insert(payload)
       .select()
       .single();
 
     if (error) {
-      // Handle duplicate phone numbers gracefully by returning the existing
-      // customer instead of logging an error. This avoids noisy console
-      // output while allowing the UI to continue with the existing record.
-      if (error.code === '23505' && customerData.phone) {
-        const state = get();
-        let existing = state.customers.find((c) => c.phone === customerData.phone);
-
-        if (!existing) {
-          const { data: existingCustomer, error: fetchError } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('phone', customerData.phone)
-            .single();
-
-          if (!fetchError && existingCustomer) {
-            existing = {
-              id: existingCustomer.id,
-              name: existingCustomer.name,
-              phone: existingCustomer.phone || undefined,
-              address: existingCustomer.address || undefined,
-              notes: existingCustomer.notes || undefined,
-              createdAt: existingCustomer.created_at,
-              updatedAt: existingCustomer.updated_at,
-            };
-
-            set((state) => ({
-              customers: state.customers.some((c) => c.id === existing!.id)
-                ? state.customers
-                : [...state.customers, existing!],
-            }));
-          }
-        }
-
-        if (existing) {
-          return { customer: existing, error: null };
-        }
-      }
-
       console.error('Error adding customer:', error);
       return { customer: null, error };
     }
