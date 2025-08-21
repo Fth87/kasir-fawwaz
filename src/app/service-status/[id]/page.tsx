@@ -23,7 +23,7 @@ export default function ServiceStatusPage() {
 
   const [service, setService] = useState<ServiceTransaction | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
-console.log({isLoading})
+  console.log({ isLoading });
 
   useEffect(() => {
     const fetchServiceStatus = async () => {
@@ -57,7 +57,7 @@ console.log({isLoading})
 
   const getStatusIcon = (status: ServiceTransaction['status']) => {
     if (status.startsWith('COMPLETED')) return <CheckCircle className="h-6 w-6 text-green-500" />;
-    if (status === 'CANCELLED') return <CircleSlash className="h-6 w-6 text-red-500" />;
+    if (['CANCELLED', 'PARTS_UNAVAILABLE', 'UNABLE_TO_REPAIR'].includes(status)) return <CircleSlash className="h-6 w-6 text-red-500" />;
     if (['AWAITING_PARTS', 'IN_DIAGNOSIS', 'IN_REPAIR_QUEUE', 'REPAIR_IN_PROGRESS'].includes(status)) return <Clock className="h-6 w-6 text-yellow-500" />;
     return <Info className="h-6 w-6 text-blue-500" />;
   };
@@ -155,11 +155,17 @@ console.log({isLoading})
               </div>
             )}
 
-            <Separator />
-            <div className="flex justify-between items-baseline font-bold text-lg">
-              <p>Estimasi Biaya</p>
-              <p>{formatCurrency(service.serviceFee)}</p>
-            </div>
+            {service.serviceFee > 0 ? (
+              <>
+                <Separator />
+                <div className="flex justify-between items-baseline font-bold text-lg">
+                  <p>Biaya</p>
+                  <p>{formatCurrency(service.serviceFee)}</p>
+                </div>
+              </>
+            ) : (
+              <></>
+            )}
           </CardContent>
         </Card>
       </div>
