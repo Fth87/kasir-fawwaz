@@ -23,7 +23,7 @@ export default function ServiceStatusPage() {
 
   const [service, setService] = useState<ServiceTransaction | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
-console.log({isLoading})
+  console.log({ isLoading });
 
   useEffect(() => {
     const fetchServiceStatus = async () => {
@@ -155,11 +155,17 @@ console.log({isLoading})
               </div>
             )}
 
-            <Separator />
-            <div className="flex justify-between items-baseline font-bold text-lg">
-              <p>Estimasi Biaya</p>
-              <p>{formatCurrency(service.serviceFee)}</p>
-            </div>
+            {service.serviceFee > 0 ? (
+              <>
+                <Separator />
+                <div className="flex justify-between items-baseline font-bold text-lg">
+                  <p>Biaya</p>
+                  <p>{formatCurrency(service.serviceFee)}</p>
+                </div>
+              </>
+            ) : (
+              <></>
+            )}
           </CardContent>
         </Card>
       </div>
