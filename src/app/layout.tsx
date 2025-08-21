@@ -5,6 +5,7 @@ import './globals.css';
 import { AppLayout } from '@/components/layout/app-layout';
 import { Toaster } from '@/components/ui/toaster';
 import { ProgressBar } from '@/components/layout/progress-bar';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 const ptSans = PT_Sans({
   weight: ['400', '700'],
@@ -28,9 +29,11 @@ export default function RootLayout({
       </head>
       <body className={`${ptSans.variable} font-body antialiased`} suppressHydrationWarning={true}>
         <ProgressBar />
-        <AppLayout>
-          {children}
-        </AppLayout>
+        <SidebarProvider defaultOpen>
+          <AppLayout>
+            {children}
+          </AppLayout>
+        </SidebarProvider>
         <Toaster />
       </body>
     </html>

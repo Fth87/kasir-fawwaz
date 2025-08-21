@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarTrigger,
@@ -105,7 +104,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SidebarProvider defaultOpen>
+    <>
       <Sidebar>
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-2">
@@ -203,6 +202,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 p-4 sm:px-6 sm:py-0 md:p-6">{children}</main>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }
