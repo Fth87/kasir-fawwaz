@@ -59,10 +59,8 @@ export function DataTable<TData, TValue>({
 
   // Reset ke halaman pertama saat filter berubah
   useEffect(() => {
-    if (pagination.pageIndex !== 0) {
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    }
-  }, [filters, pagination.pageIndex]);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [filters]);
 
 
   return (
@@ -124,7 +122,7 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination Controls */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-        <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-y-0 md:space-x-4">
+        <div className="hidden md:flex md:flex-row md:items-center md:space-x-4">
           <div className="text-sm text-muted-foreground">
             Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount() || 1}
           </div>
@@ -142,17 +140,52 @@ export function DataTable<TData, TValue>({
             ))}
           </select>
         </div>
-        <div className="flex items-center justify-center md:justify-end space-x-1">
-          <Button variant="outline" size="sm" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage() || isLoading} className="hidden md:flex">
+        <div className="flex w-full items-center justify-between md:w-auto md:justify-end md:space-x-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage() || isLoading}
+            className="hidden md:flex"
+          >
             <ChevronsLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage() || isLoading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage() || isLoading}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage() || isLoading}>
+          <select
+            value={table.getState().pagination.pageSize}
+            onChange={(e) => {
+              table.setPageSize(Number(e.target.value));
+            }}
+            className="mx-2 text-sm border border-input bg-background px-3 py-1 rounded-md md:hidden"
+          >
+            {[10, 20, 30, 50, 100].map((pageSize) => (
+              <option key={pageSize} value={pageSize}>
+                Show {pageSize}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage() || isLoading}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage() || isLoading} className="hidden md:flex">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage() || isLoading}
+            className="hidden md:flex"
+          >
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

@@ -1,6 +1,7 @@
 'use server';
 
 import type { SortingState } from '@tanstack/react-table';
+import type { TransactionTypeFilter } from '@/types';
 import { createClient } from '@/lib/supabase/server';
 import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 import type { Transaction } from '@/types';
@@ -9,10 +10,12 @@ export async function getPaginatedTransactions({
   pageIndex,
   pageSize,
   sorting,
+  filters,
 }: {
   pageIndex: number;
   pageSize: number;
   sorting: SortingState;
+  filters?: { search?: string; type?: TransactionTypeFilter };
 }): Promise<{
   data: Transaction[] | null;
   error: string | null;
@@ -25,12 +28,31 @@ export async function getPaginatedTransactions({
 
     let query = supabase
       .from('transactions')
-      .select('*', { count: 'exact' })
+      .select('*, customer:customers(name, phone, address)', { count: 'exact' })
       .range(from, to);
+
+    if (filters?.search) {
+      const term = filters.search.replace(/,/g, '');
+      const orFilter =
+        `customer_name.ilike.%${term}%,` +
+        `details->>serviceName.ilike.%${term}%,` +
+        `details->>device.ilike.%${term}%,` +
+        `details->>issueDescription.ilike.%${term}%,` +
+        `details->>description.ilike.%${term}%`;
+      query = query.or(orFilter);
+    }
+    if (filters?.type && filters.type !== 'all') {
+      query = query.eq('type', filters.type);
+    }
 
     if (sorting.length > 0) {
       const sort = sorting[0];
-      query = query.order(sort.id, { ascending: !sort.desc });
+      const column = sort.id === 'date'
+        ? 'created_at'
+        : sort.id === 'amount'
+          ? 'total_amount'
+          : sort.id;
+      query = query.order(column, { ascending: !sort.desc });
     } else {
       query = query.order('created_at', { ascending: false });
     }
@@ -40,7 +62,7 @@ export async function getPaginatedTransactions({
     if (error) throw error;
 
     const formattedTransactions = data.map(mapDbRowToTransaction).filter(Boolean) as Transaction[];
-    const pageCount = Math.ceil((count ?? 0) / pageSize);
+    const pageCount = Math.max(1, Math.ceil((count ?? 0) / pageSize));
 
     return { data: formattedTransactions, error: null, pageCount };
   } catch (error) {
@@ -53,7 +75,11 @@ export async function getPaginatedTransactions({
 export async function getTransactionById(id: string): Promise<{ data: Transaction | null; error: string | null; }> {
     try {
         const supabase = await createClient();
-        const { data, error } = await supabase.from('transactions').select('*').eq('id', id).single();
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*, customer:customers(name, phone, address)')
+          .eq('id', id)
+          .single();
 
         if (error) throw error;
         if (!data) return { data: null, error: 'Transaksi tidak ditemukan.' };
@@ -75,7 +101,7 @@ export async function getTransactionsByCustomerId(customerId: string): Promise<{
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('transactions')
-            .select('*')
+            .select('*, customer:customers(name, phone, address)')
             .eq('customer_id', customerId)
             .order('created_at', { ascending: false });
 
@@ -94,7 +120,10 @@ export async function getTransactionsByCustomerId(customerId: string): Promise<{
 export async function getAllTransactions(): Promise<{ data: Transaction[] | null; error: string | null; }> {
     try {
         const supabase = await createClient();
-        const { data, error } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*, customer:customers(name, phone, address)')
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
 

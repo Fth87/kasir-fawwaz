@@ -1,10 +1,12 @@
 import type { Transaction, SaleTransaction, ServiceTransaction, ExpenseTransaction } from '@/types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapDbRowToTransaction(tx: any): Transaction | null {
+  const customer = tx.customer || tx.customers || {};
+
   const commonData = {
     id: tx.id,
     date: tx.created_at,
-    customerName: tx.customer_name,
+    customerName: tx.customer_name || customer.name,
     customerId: tx.customer_id,
     total_amount: tx.total_amount,
   };
@@ -40,6 +42,8 @@ export function mapDbRowToTransaction(tx: any): Transaction | null {
             ? parseFloat(details.partsCost)
             : (details.partsCost ?? 0),
         progressNotes: details.progressNotes ?? [],
+        customerPhone: customer.phone || details.customerPhone,
+        customerAddress: customer.address || details.customerAddress,
       } as ServiceTransaction;
 
     case 'expense':

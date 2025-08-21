@@ -67,11 +67,11 @@ export default function ManageServicesPage() {
 
   const [nameFilter, setNameFilter] = useState('');
   const debouncedNameFilter = useDebounce(nameFilter, 500);
-  const filters = useMemo(() => ({ customerName: debouncedNameFilter, type: 'service' as TransactionTypeFilter }), [debouncedNameFilter]);
+  const filters = useMemo(() => ({ search: debouncedNameFilter, type: 'service' as TransactionTypeFilter }), [debouncedNameFilter]);
 
   const services = useMemo(() => transactions.filter(tx => tx.type === 'service') as ServiceTransaction[], [transactions]);
 
-  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, currentFilters: { customerName?: string, type?: TransactionTypeFilter }) => {
+  const fetchDataWithToast = useCallback(async (pagination: PaginationState, sorting: SortingState, currentFilters: { search?: string; type?: TransactionTypeFilter }) => {
     const { error } = await fetchData(pagination, sorting, currentFilters);
     if (error) {
       toast({

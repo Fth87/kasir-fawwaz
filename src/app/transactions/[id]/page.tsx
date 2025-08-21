@@ -18,7 +18,9 @@ import type { StoreSettings, Transaction, SaleTransaction, ServiceTransaction, E
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Printer, Settings, Building, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Settings, Building, Loader2, MessageCircle } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth.store';
+import { toWhatsAppLink } from '@/utils/whatsapp';
 
 // Helper Function
 const formatCurrency = (amount: number): string => {
@@ -284,6 +286,8 @@ function ExpenseDetails({ tx }: { tx: ExpenseTransaction }) {
 
 function ReceiptFooter({ transaction, onPrintClick, isPrinting }: { transaction: Transaction; onPrintClick: () => void; isPrinting: boolean }) {
   const router = useRouter();
+  const currentUser = useAuthStore((s) => s.user);
+  const phone = transaction.type === 'service' ? (transaction as ServiceTransaction).customerPhone : undefined;
 
   return (
     <CardContent className="p-6">
@@ -292,7 +296,14 @@ function ReceiptFooter({ transaction, onPrintClick, isPrinting }: { transaction:
           <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
         </Button>
         <div className="flex gap-2 w-full sm:w-auto">
-          {transaction.type === 'service' && (
+          {transaction.type === 'service' && phone && (
+            <Button asChild variant="outline" className="flex-1">
+              <Link href={toWhatsAppLink(phone)} target="_blank">
+                <MessageCircle className="mr-1 h-4 w-4" /> Chat
+              </Link>
+            </Button>
+          )}
+          {transaction.type === 'service' && currentUser?.role === 'admin' && (
             <Button asChild variant="outline" className="flex-1">
               <Link href={`/admin/service-management/${transaction.id}`}>
                 <Settings className="mr-1 h-4 w-4" /> Kelola
