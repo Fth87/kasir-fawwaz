@@ -47,8 +47,8 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all');
 
   // Data from store or initial
-  const data = transactions.length > 0 ? transactions : initialData;
-  const count = storePageCount > 0 ? storePageCount : initialPageCount;
+  const data = !isLoading || transactions.length > 0 ? transactions : initialData;
+  const count = !isLoading && storePageCount > 0 ? storePageCount : initialPageCount;
 
   // Filters passed to table fetcher
   const filters = useMemo(() => ({

@@ -25,7 +25,7 @@ export async function getPaginatedTransactions({
 
     let query = supabase
       .from('transactions')
-      .select('*', { count: 'exact' })
+      .select('*, customer:customers(name, phone, address)', { count: 'exact' })
       .range(from, to);
 
     if (sorting.length > 0) {
@@ -58,7 +58,11 @@ export async function getPaginatedTransactions({
 export async function getTransactionById(id: string): Promise<{ data: Transaction | null; error: string | null; }> {
     try {
         const supabase = await createClient();
-        const { data, error } = await supabase.from('transactions').select('*').eq('id', id).single();
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*, customer:customers(name, phone, address)')
+          .eq('id', id)
+          .single();
 
         if (error) throw error;
         if (!data) return { data: null, error: 'Transaksi tidak ditemukan.' };
@@ -80,7 +84,7 @@ export async function getTransactionsByCustomerId(customerId: string): Promise<{
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('transactions')
-            .select('*')
+            .select('*, customer:customers(name, phone, address)')
             .eq('customer_id', customerId)
             .order('created_at', { ascending: false });
 
@@ -99,7 +103,10 @@ export async function getTransactionsByCustomerId(customerId: string): Promise<{
 export async function getAllTransactions(): Promise<{ data: Transaction[] | null; error: string | null; }> {
     try {
         const supabase = await createClient();
-        const { data, error } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*, customer:customers(name, phone, address)')
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
 
