@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarTrigger,
@@ -16,6 +15,8 @@ import {
   SidebarSeparator,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarProvider,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -62,11 +63,42 @@ const adminNavItems = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user, isLoading } = useAuthStore();
+
+  if (isLoading) {
+    return <Loading />;
+  }
+  if (pathname === '/login') {
+    if (!user) {
+      return <>{children}</>;
+    }
+    return <Loading />;
+  } else if (pathname.startsWith('/service-status')) {
+    return <>{children}</>;
+  }
+
+  return (
+    <SidebarProvider defaultOpen>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </SidebarProvider>
+  );
+}
+
+function AppLayoutContent({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isLoading, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const handleLogout = async () => {
+    handleNavClick();
     const { error } = await logout();
     if (error) {
       toast({
@@ -83,20 +115,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
     }
   };
 
-  if (isLoading) {
-    return <Loading />;
-  }
-  if (pathname === '/login') {
-    if (!user) {
-      return <>{children}</>;
-    }
-    return <Loading />;
-  } else if (pathname.startsWith('/service-status')) {
-    return <>{children}</>;
-  }
-
   return (
-    <SidebarProvider defaultOpen>
+    <>
       <Sidebar>
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-2">
@@ -116,7 +136,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
                   variant={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
                   className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
                 >
-                  <Link href={item.href} className="flex items-center gap-3">
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-3"
+                    onClick={handleNavClick}
+                  >
                     <item.icon className="h-5 w-5 shrink-0" />
                     <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </Link>
@@ -141,7 +165,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
                         variant={pathname === item.href || pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
                         className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
                       >
-                        <Link href={item.href} className="flex items-center gap-3">
+                        <Link
+                          href={item.href}
+                          className="flex items-center gap-3"
+                          onClick={handleNavClick}
+                        >
                           <item.icon className="h-5 w-5 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                         </Link>
@@ -186,6 +214,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 p-4 sm:px-6 sm:py-0 md:p-6">{children}</main>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }

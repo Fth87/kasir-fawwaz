@@ -22,7 +22,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { PackageSearch, PackagePlus, Edit3, Trash2, Loader2, ShieldAlert } from 'lucide-react';
@@ -180,7 +188,10 @@ function ItemDialog({ children, item, onSuccess, addInventoryItem, updateInvento
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>{item ? 'Ubah Barang' : 'Tambah Barang Baru'}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{item ? 'Ubah Barang' : 'Tambah Barang Baru'}</DialogTitle>
+          <DialogDescription>Form untuk {item ? 'mengubah' : 'menambah'} barang inventaris.</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nama Barang</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
