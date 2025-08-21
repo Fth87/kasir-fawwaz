@@ -55,7 +55,7 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
 
   // Filters passed to table fetcher
   const filters = useMemo(() => ({
-    customerName: search || undefined,
+    search: search || undefined,
     type: typeFilter,
   }), [search, typeFilter]);
 
@@ -151,7 +151,7 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
-          placeholder="Cari pelanggan..."
+          placeholder="Cari pelanggan, device, deskripsi, layanan..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}

@@ -15,7 +15,7 @@ export async function getPaginatedTransactions({
   pageIndex: number;
   pageSize: number;
   sorting: SortingState;
-  filters?: { customerName?: string; type?: TransactionTypeFilter };
+  filters?: { search?: string; type?: TransactionTypeFilter };
 }): Promise<{
   data: Transaction[] | null;
   error: string | null;
@@ -31,8 +31,15 @@ export async function getPaginatedTransactions({
       .select('*, customer:customers(name, phone, address)', { count: 'exact' })
       .range(from, to);
 
-    if (filters?.customerName) {
-      query = query.ilike('customer_name', `%${filters.customerName}%`);
+    if (filters?.search) {
+      const term = filters.search.replace(/,/g, '');
+      const orFilter =
+        `customer_name.ilike.%${term}%,` +
+        `details->>serviceName.ilike.%${term}%,` +
+        `details->>device.ilike.%${term}%,` +
+        `details->>issueDescription.ilike.%${term}%,` +
+        `details->>description.ilike.%${term}%`;
+      query = query.or(orFilter);
     }
     if (filters?.type && filters.type !== 'all') {
       query = query.eq('type', filters.type);

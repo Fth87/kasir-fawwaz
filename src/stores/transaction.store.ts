@@ -29,7 +29,7 @@ interface TransactionState {
   transactions: Transaction[];
   isLoading: boolean;
   pageCount: number;
-  fetchData: (pagination: PaginationState, sorting: SortingState, filters: { customerName?: string, type?: TransactionTypeFilter }) => Promise<{ error: Error | null }>;
+  fetchData: (pagination: PaginationState, sorting: SortingState, filters: { search?: string; type?: TransactionTypeFilter }) => Promise<{ error: Error | null }>;
   addTransaction: (transactionData: AddTransactionInput) => Promise<{ success: boolean; error: Error | null, data?: Transaction | null }>;
   deleteTransaction: (transactionId: string) => Promise<{ success: boolean; error: Error | null }>;
   updateTransactionDetails: (transactionId: string, updates: UpdateTransactionInput) => Promise<{ success: boolean; error: Error | null }>;
@@ -52,7 +52,16 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       .select('*, customer:customers(name, phone, address)', { count: 'exact' })
       .range(from, to);
 
-    if (filters.customerName) query = query.ilike('customer_name', `%${filters.customerName}%`);
+    if (filters.search) {
+      const term = filters.search.replace(/,/g, '');
+      const orFilter =
+        `customer_name.ilike.%${term}%,` +
+        `details->>serviceName.ilike.%${term}%,` +
+        `details->>device.ilike.%${term}%,` +
+        `details->>issueDescription.ilike.%${term}%,` +
+        `details->>description.ilike.%${term}%`;
+      query = query.or(orFilter);
+    }
     if (filters.type && filters.type !== 'all') query = query.eq('type', filters.type);
     if (sorting.length > 0) {
         const sort = sorting[0];
