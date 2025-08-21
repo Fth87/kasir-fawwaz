@@ -15,6 +15,7 @@ import {
   SidebarSeparator,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarProvider,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -62,9 +63,32 @@ const adminNavItems = [
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user, isLoading } = useAuthStore();
+
+  if (isLoading) {
+    return <Loading />;
+  }
+  if (pathname === '/login') {
+    if (!user) {
+      return <>{children}</>;
+    }
+    return <Loading />;
+  } else if (pathname.startsWith('/service-status')) {
+    return <>{children}</>;
+  }
+
+  return (
+    <SidebarProvider defaultOpen>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </SidebarProvider>
+  );
+}
+
+function AppLayoutContent({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isLoading, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleNavClick = () => {
@@ -90,18 +114,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
       router.push('/login');
     }
   };
-
-  if (isLoading) {
-    return <Loading />;
-  }
-  if (pathname === '/login') {
-    if (!user) {
-      return <>{children}</>;
-    }
-    return <Loading />;
-  } else if (pathname.startsWith('/service-status')) {
-    return <>{children}</>;
-  }
 
   return (
     <>
