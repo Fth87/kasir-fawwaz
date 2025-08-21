@@ -21,7 +21,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Users2, PlusCircle, Edit, Trash2, Loader2, ShieldAlert } from 'lucide-react';
@@ -169,7 +177,10 @@ function CustomerDialog({ children, item, onSuccess, addCustomer, updateCustomer
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>{item ? 'Ubah Data Pelanggan' : 'Tambah Pelanggan Baru'}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{item ? 'Ubah Data Pelanggan' : 'Tambah Pelanggan Baru'}</DialogTitle>
+          <DialogDescription>Form untuk {item ? 'mengubah' : 'menambah'} data pelanggan.</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nama</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />

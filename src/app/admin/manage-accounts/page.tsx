@@ -22,7 +22,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
@@ -183,7 +191,10 @@ function AccountDialog({ children, item, onSuccess, addUser, updateUser, disable
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild disabled={disabled}>{children}</DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>{item ? 'Ubah Akun Pengguna' : 'Tambah Akun Baru'}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{item ? 'Ubah Akun Pengguna' : 'Tambah Akun Baru'}</DialogTitle>
+          <DialogDescription>Form untuk {item ? 'mengubah' : 'menambah'} akun pengguna.</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" readOnly={!!item} /></FormControl><FormMessage /></FormItem>)} />
