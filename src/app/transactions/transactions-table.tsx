@@ -150,16 +150,18 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
       refreshTrigger={0}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Input
-          placeholder="Cari pelanggan, device, deskripsi, layanan..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          className="w-full sm:max-w-xs"
-        />
-        <Button onClick={handleSearch} className="w-full sm:w-auto">
-          Cari
-        </Button>
+        <div className="flex w-full gap-2 sm:max-w-xs">
+          <Input
+            placeholder="Cari pelanggan, device, deskripsi, layanan..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="flex-1"
+          />
+          <Button onClick={handleSearch} className="px-3">
+            Cari
+          </Button>
+        </div>
         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TransactionTypeFilter)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Semua tipe" />
