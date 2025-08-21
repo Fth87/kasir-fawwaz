@@ -24,16 +24,18 @@ export type SaleTransaction = {
 };
 
 export const ServiceStatusOptions = [
-  { value: 'PENDING_CONFIRMATION', label: 'Pending Confirmation' },
-  { value: 'CONFIRMED_QUEUED', label: 'Confirmed & Queued' },
-  { value: 'TECHNICIAN_ASSIGNED', label: 'Technician Assigned' },
-  { value: 'DIAGNOSIS_IN_PROGRESS', label: 'Diagnosis in Progress' },
-  { value: 'AWAITING_PARTS', label: 'Awaiting Parts' },
-  { value: 'REPAIR_IN_PROGRESS', label: 'Repair in Progress' },
-  { value: 'QUALITY_CHECK', label: 'Quality Check' },
-  { value: 'READY_FOR_PICKUP', label: 'Ready for Pickup' },
-  { value: 'COMPLETED_COLLECTED', label: 'Completed & Collected' },
-  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: 'PENDING_CONFIRMATION', label: 'Menunggu Konfirmasi' },
+  { value: 'CONFIRMED_QUEUED', label: 'Terkonfirmasi & Dalam Antrian' },
+  { value: 'TECHNICIAN_ASSIGNED', label: 'Teknisi Ditugaskan' },
+  { value: 'DIAGNOSIS_IN_PROGRESS', label: 'Diagnosa Sedang Dilakukan' },
+  { value: 'AWAITING_PARTS', label: 'Menunggu Sparepart' },
+  { value: 'PARTS_UNAVAILABLE', label: 'Sparepart Kosong' },
+  { value: 'REPAIR_IN_PROGRESS', label: 'Perbaikan Sedang Berlangsung' },
+  { value: 'QUALITY_CHECK', label: 'Pemeriksaan Kualitas' },
+  { value: 'READY_FOR_PICKUP', label: 'Siap Diambil' },
+  { value: 'COMPLETED_COLLECTED', label: 'Selesai & Diambil' },
+  { value: 'UNABLE_TO_REPAIR', label: 'Tidak Bisa Diperbaiki' },
+  { value: 'CANCELLED', label: 'Dibatalkan' },
 ] as const;
 
 export type ServiceStatusValue = (typeof ServiceStatusOptions)[number]['value'];

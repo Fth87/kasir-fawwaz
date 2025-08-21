@@ -57,7 +57,7 @@ console.log({isLoading})
 
   const getStatusIcon = (status: ServiceTransaction['status']) => {
     if (status.startsWith('COMPLETED')) return <CheckCircle className="h-6 w-6 text-green-500" />;
-    if (status === 'CANCELLED') return <CircleSlash className="h-6 w-6 text-red-500" />;
+    if (['CANCELLED', 'PARTS_UNAVAILABLE', 'UNABLE_TO_REPAIR'].includes(status)) return <CircleSlash className="h-6 w-6 text-red-500" />;
     if (['AWAITING_PARTS', 'IN_DIAGNOSIS', 'IN_REPAIR_QUEUE', 'REPAIR_IN_PROGRESS'].includes(status)) return <Clock className="h-6 w-6 text-yellow-500" />;
     return <Info className="h-6 w-6 text-blue-500" />;
   };

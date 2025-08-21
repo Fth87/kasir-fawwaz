@@ -97,7 +97,7 @@ export default function ManageServiceProgressPage() {
   
   const getStatusIcon = (status: ServiceTransaction['status']) => {
     if (status.startsWith('COMPLETED')) return <CheckCircle className="h-5 w-5 text-green-500" />;
-    if (status === 'CANCELLED') return <CircleSlash className="h-5 w-5 text-red-500" />;
+    if (['CANCELLED', 'PARTS_UNAVAILABLE', 'UNABLE_TO_REPAIR'].includes(status)) return <CircleSlash className="h-5 w-5 text-red-500" />;
     if (['AWAITING_PARTS', 'DIAGNOSIS_IN_PROGRESS', 'REPAIR_IN_PROGRESS'].includes(status)) return <Clock className="h-5 w-5 text-yellow-500" />;
     return <CheckCircle className="h-5 w-5 text-blue-500" />;
   };
