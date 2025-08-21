@@ -1,15 +1,18 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-// import { useTransactions } from '@/context/transaction-context';
-import type { Transaction } from '@/types';
+import type { Transaction, TransactionTypeFilter, ServiceTransaction } from '@/types';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Settings } from 'lucide-react';
+import { Eye, Settings, MessageCircle } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useTransactionStore } from '@/stores/transaction.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toWhatsAppLink } from '@/utils/whatsapp';
 
 // Helper functions (can be moved to a utils file if needed)
 const formatCurrency = (amount: number) => {
@@ -30,84 +33,98 @@ const getTransactionAmount = (tx: Transaction) => {
   return 0;
 };
 
-// Column Definitions
-const columns: ColumnDef<Transaction>[] = [
-  {
-    accessorKey: 'date',
-    header: ({ column }) => createSortableHeader(column, 'Date'),
-    cell: ({ row }) => new Date(row.original.date).toLocaleDateString('id-ID'),
-  },
-  {
-    accessorKey: 'type',
-    header: 'Type',
-    cell: ({ row }) => {
-      const tx = row.original;
-      return (
-        <Badge variant={tx.type === 'expense' ? 'destructive' : tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">
-          {tx.type}
-        </Badge>
-      );
-    },
-  },
-  {
-    id: 'description',
-    header: 'Description',
-    cell: ({ row }) => getTransactionSummary(row.original),
-  },
-  {
-    id: 'amount',
-    header: ({ column }) => createSortableHeader(column, 'Amount (IDR)'),
-    cell: ({ row }) => {
-      const tx = row.original;
-      const amount = getTransactionAmount(tx);
-      return (
-        <div className={`text-right font-medium ${tx.type === 'expense' ? 'text-destructive' : 'text-green-600'}`}>
-          {tx.type === 'expense' ? '-' : '+'}
-          {formatCurrency(amount)}
-        </div>
-      );
-    },
-  },
-  {
-    id: 'actions',
-    header: 'Actions',
-    cell: ({ row }) => {
-      const tx = row.original;
-      return (
-        <div className="text-right space-x-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/transactions/${tx.id}`}>
-              <Eye className="mr-1 h-4 w-4" /> View
-            </Link>
-          </Button>
-          {tx.type === 'service' && (
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/admin/service-management/${tx.id}`}>
-                <Settings className="mr-1 h-4 w-4" /> Manage
-              </Link>
-            </Button>
-          )}
-        </div>
-      );
-    },
-  },
-];
-
 interface TransactionsTableProps {
   initialData: Transaction[];
   initialPageCount: number;
 }
 
 export function TransactionsTable({ initialData, initialPageCount }: TransactionsTableProps) {
-  const { transactions, isLoading, pageCount, fetchData } = useTransactionStore();
+  const { transactions, isLoading, pageCount: storePageCount, fetchData } = useTransactionStore();
+  const currentUser = useAuthStore((s) => s.user);
 
-  // Use context data if available, otherwise fall back to initial props
+  // filter states
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all');
+
+  // Data from store or initial
   const data = transactions.length > 0 ? transactions : initialData;
-  const count = pageCount > 0 ? pageCount : initialPageCount;
+  const count = storePageCount > 0 ? storePageCount : initialPageCount;
 
-  // Memoize the filters object to prevent re-creating it on every render,
-  // which would cause an infinite loop in the DataTable's useEffect hook.
-  const filters = useMemo(() => ({}), []);
+  // Filters passed to table fetcher
+  const filters = useMemo(() => ({
+    customerName: search || undefined,
+    type: typeFilter,
+  }), [search, typeFilter]);
+
+  const columns = useMemo<ColumnDef<Transaction>[]>(() => [
+    {
+      accessorKey: 'date',
+      header: ({ column }) => createSortableHeader(column, 'Date'),
+      cell: ({ row }) => new Date(row.original.date).toLocaleDateString('id-ID'),
+    },
+    {
+      accessorKey: 'type',
+      header: 'Type',
+      cell: ({ row }) => {
+        const tx = row.original;
+        return (
+          <Badge variant={tx.type === 'expense' ? 'destructive' : tx.type === 'sale' ? 'default' : 'secondary'} className="capitalize">
+            {tx.type}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'description',
+      header: 'Description',
+      cell: ({ row }) => getTransactionSummary(row.original),
+    },
+    {
+      id: 'amount',
+      header: ({ column }) => createSortableHeader(column, 'Amount (IDR)'),
+      cell: ({ row }) => {
+        const tx = row.original;
+        const amount = getTransactionAmount(tx);
+        return (
+          <div className={`text-right font-medium ${tx.type === 'expense' ? 'text-destructive' : 'text-green-600'}`}>
+            {tx.type === 'expense' ? '-' : '+'}
+            {formatCurrency(amount)}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const tx = row.original;
+        const phone = tx.type === 'service' ? (tx as ServiceTransaction).customerPhone : undefined;
+        return (
+          <div className="text-right space-x-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/transactions/${tx.id}`}>
+                <Eye className="mr-1 h-4 w-4" /> View
+              </Link>
+            </Button>
+            {tx.type === 'service' && phone && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={toWhatsAppLink(phone)} target="_blank">
+                  <MessageCircle className="mr-1 h-4 w-4" /> Chat
+                </Link>
+              </Button>
+            )}
+            {tx.type === 'service' && currentUser?.role === 'admin' && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/admin/service-management/${tx.id}`}>
+                  <Settings className="mr-1 h-4 w-4" /> Manage
+                </Link>
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ], [currentUser]);
 
   return (
     <DataTable
@@ -117,7 +134,27 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
       fetchData={fetchData}
       isLoading={isLoading}
       filters={filters}
-      refreshTrigger={0} // Placeholder
-    />
+      refreshTrigger={0}
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          placeholder="Cari pelanggan..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full sm:max-w-xs"
+        />
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TransactionTypeFilter)}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Semua tipe" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua</SelectItem>
+            <SelectItem value="sale">Penjualan</SelectItem>
+            <SelectItem value="service">Servis</SelectItem>
+            <SelectItem value="expense">Pengeluaran</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </DataTable>
   );
 }

@@ -40,6 +40,8 @@ export function mapDbRowToTransaction(tx: any): Transaction | null {
             ? parseFloat(details.partsCost)
             : (details.partsCost ?? 0),
         progressNotes: details.progressNotes ?? [],
+        customerPhone: tx.customer_phone || details.customerPhone,
+        customerAddress: tx.customer_address || details.customerAddress,
       } as ServiceTransaction;
 
     case 'expense':

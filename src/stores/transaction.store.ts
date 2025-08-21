@@ -53,7 +53,12 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     if (filters.type && filters.type !== 'all') query = query.eq('type', filters.type);
     if (sorting.length > 0) {
         const sort = sorting[0];
-        query = query.order(sort.id, { ascending: !sort.desc });
+        const column = sort.id === 'date'
+          ? 'created_at'
+          : sort.id === 'amount'
+            ? 'total_amount'
+            : sort.id;
+        query = query.order(column, { ascending: !sort.desc });
     } else {
         query = query.order('created_at', { ascending: false });
     }
@@ -66,7 +71,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     }
 
     const formattedTransactions = data?.map(mapDbRowToTransaction).filter(Boolean) as Transaction[] || [];
-    set({ transactions: formattedTransactions, pageCount: Math.ceil((count ?? 0) / pageSize), isLoading: false });
+    set({ transactions: formattedTransactions, pageCount: Math.max(1, Math.ceil((count ?? 0) / pageSize)), isLoading: false });
     return { error: null };
   },
 
