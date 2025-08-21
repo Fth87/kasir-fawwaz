@@ -59,10 +59,8 @@ export function DataTable<TData, TValue>({
 
   // Reset ke halaman pertama saat filter berubah
   useEffect(() => {
-    if (pagination.pageIndex !== 0) {
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    }
-  }, [filters, pagination.pageIndex]);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [filters]);
 
 
   return (

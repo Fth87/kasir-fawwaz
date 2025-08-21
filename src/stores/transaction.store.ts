@@ -52,7 +52,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       .select('*, customer:customers(name, phone, address)', { count: 'exact' })
       .range(from, to);
 
-    if (filters.customerName) query = query.ilike('customer.name', `%${filters.customerName}%`);
+    if (filters.customerName) query = query.ilike('customer_name', `%${filters.customerName}%`);
     if (filters.type && filters.type !== 'all') query = query.eq('type', filters.type);
     if (sorting.length > 0) {
         const sort = sorting[0];

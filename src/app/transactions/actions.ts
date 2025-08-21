@@ -1,6 +1,7 @@
 'use server';
 
 import type { SortingState } from '@tanstack/react-table';
+import type { TransactionTypeFilter } from '@/types';
 import { createClient } from '@/lib/supabase/server';
 import { mapDbRowToTransaction } from '@/utils/mapDBRowToTransaction';
 import type { Transaction } from '@/types';
@@ -9,10 +10,12 @@ export async function getPaginatedTransactions({
   pageIndex,
   pageSize,
   sorting,
+  filters,
 }: {
   pageIndex: number;
   pageSize: number;
   sorting: SortingState;
+  filters?: { customerName?: string; type?: TransactionTypeFilter };
 }): Promise<{
   data: Transaction[] | null;
   error: string | null;
@@ -27,6 +30,13 @@ export async function getPaginatedTransactions({
       .from('transactions')
       .select('*, customer:customers(name, phone, address)', { count: 'exact' })
       .range(from, to);
+
+    if (filters?.customerName) {
+      query = query.ilike('customer_name', `%${filters.customerName}%`);
+    }
+    if (filters?.type && filters.type !== 'all') {
+      query = query.eq('type', filters.type);
+    }
 
     if (sorting.length > 0) {
       const sort = sorting[0];

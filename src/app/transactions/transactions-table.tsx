@@ -20,9 +20,9 @@ const formatCurrency = (amount: number) => {
 };
 
 const getTransactionSummary = (tx: Transaction) => {
-  if (tx.type === 'sale') return `Sale: ${tx.items.map(i => i.name).join(', ')} (${tx.items.reduce((sum, i) => sum + i.quantity, 0)} items)`;
-  if (tx.type === 'service') return `Service: ${tx.serviceName}`;
-  if (tx.type === 'expense') return `Expense: ${tx.description}`;
+  if (tx.type === 'sale') return `${tx.items.map(i => i.name).join(', ')} (${tx.items.reduce((sum, i) => sum + i.quantity, 0)} items)`;
+  if (tx.type === 'service') return tx.serviceName;
+  if (tx.type === 'expense') return tx.description;
   return 'Unknown Transaction';
 };
 
@@ -43,8 +43,11 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
   const currentUser = useAuthStore((s) => s.user);
 
   // filter states
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all');
+
+  const handleSearch = () => setSearch(searchInput);
 
   // Data from store or initial
   const data = !isLoading || transactions.length > 0 ? transactions : initialData;
@@ -61,6 +64,16 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
       accessorKey: 'date',
       header: ({ column }) => createSortableHeader(column, 'Date'),
       cell: ({ row }) => new Date(row.original.date).toLocaleDateString('id-ID'),
+    },
+    {
+      accessorKey: 'customerName',
+      header: 'Pelanggan',
+      cell: ({ row }) => row.original.customerName || '-',
+    },
+    {
+      id: 'device',
+      header: 'Device',
+      cell: ({ row }) => row.original.type === 'service' ? (row.original as ServiceTransaction).device : '-',
     },
     {
       accessorKey: 'type',
@@ -139,10 +152,14 @@ export function TransactionsTable({ initialData, initialPageCount }: Transaction
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
           placeholder="Cari pelanggan..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           className="w-full sm:max-w-xs"
         />
+        <Button onClick={handleSearch} className="w-full sm:w-auto">
+          Cari
+        </Button>
         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TransactionTypeFilter)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Semua tipe" />

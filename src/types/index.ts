@@ -67,6 +67,7 @@ export type ExpenseTransaction = {
   id: string;
   type: 'expense';
   date: string; // ISO string
+  customerName?: string;
   description: string;
   category?: string;
   amount: number;
