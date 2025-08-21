@@ -23,7 +23,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, createSortableHeader } from '@/components/ui/data-table';
@@ -206,7 +214,10 @@ function ServiceDialog({ children, item, onSuccess, addService, updateService }:
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{item ? 'Ubah Detail Servis' : 'Tambah Servis Baru'}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{item ? 'Ubah Detail Servis' : 'Tambah Servis Baru'}</DialogTitle>
+          <DialogDescription>Form untuk {item ? 'mengubah' : 'menambah'} data servis.</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             <FormField control={form.control} name="customerName" render={({ field }) => (<FormItem><FormLabel>Nama Pelanggan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
