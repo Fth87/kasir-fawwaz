@@ -16,6 +16,7 @@ import {
   SidebarSeparator,
   SidebarGroup,
   SidebarGroupLabel,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,8 +66,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, isLoading, logout } = useAuthStore();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const handleLogout = async () => {
+    handleNavClick();
     const { error } = await logout();
     if (error) {
       toast({
@@ -116,7 +125,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
                   variant={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
                   className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
                 >
-                  <Link href={item.href} className="flex items-center gap-3">
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-3"
+                    onClick={handleNavClick}
+                  >
                     <item.icon className="h-5 w-5 shrink-0" />
                     <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </Link>
@@ -141,7 +154,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
                         variant={pathname === item.href || pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
                         className="w-full justify-start group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
                       >
-                        <Link href={item.href} className="flex items-center gap-3">
+                        <Link
+                          href={item.href}
+                          className="flex items-center gap-3"
+                          onClick={handleNavClick}
+                        >
                           <item.icon className="h-5 w-5 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                         </Link>
